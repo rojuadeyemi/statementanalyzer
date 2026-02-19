@@ -1,0 +1,12 @@
+from analyzer.registry import ProcessorRegistry
+from analyzer.processors import *
+
+ProcessorRegistry.register(MoniepointProcessor)
+ProcessorRegistry.register(MoniepointProcessor_v2)
+#ProcessorRegistry.register(KudaProcessor)
+ProcessorRegistry.register(PalmPayProcessor)
+ProcessorRegistry.register(ZenithProcessor)
+ProcessorRegistry.register(FidelityProcessor)
+ProcessorRegistry.register(OpayProcessor)
+ProcessorRegistry.register(MultipleProcessor)
+ProcessorRegistry.register(GenericProcessor)

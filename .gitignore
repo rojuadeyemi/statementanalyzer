@@ -1,0 +1,37 @@
+# Environment variables
+.venv
+.env
+
+
+# Python
+__pycache__/
+.installed.cfg
+*.log
+*.pyc
+*.json
+*.ipynb
+*.docx
+*.xlsx
+class_testing.py
+jiji_scrapper.py
+prequalifier_app.py
+sql.py
+testing.py
+CrCResponse.txt
+mbs.txt
+
+# folders
+
+prequalifier/
+Bank Statements/
+uploads/
+logs/
+
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+*.ipynb
+
+#Database 
+*.db
+

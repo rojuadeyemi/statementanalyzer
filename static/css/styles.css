@@ -1,0 +1,146 @@
+@import url(https://fonts.googleapis.com/css?family=Open+Sans|Roboto:400,700);
+
+body {
+    background-color: #f4f7f6;
+    font-family: 'Roboto', sans-serif;
+    background-size: cover; /* Adjusts image size to cover the entire background */
+    background-repeat: no-repeat; /* Prevents the image from repeating */
+    background-position: center; /* Centers the image */
+    background-attachment: fixed;
+    color: #333;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+}
+
+.index {
+    background-image: url('/static/img/LB_BG.webp');
+}
+
+.after {
+
+    background-image: url('/static/img/overlay-bg.jpg');
+    }
+
+.container {
+    margin: auto;
+    max-width: 500px;
+    padding: 10px;
+    background-color: rgba(255, 255, 255, 0.2); /* Slightly transparent background */
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(10px); /* Adds a blur effect for modern look */
+}
+
+.container-after {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    margin: 10px; /* Optional: adds some spacing from the bottom and left edges */
+    max-width: 700px;
+    padding: 10px;
+    background-color: rgba(255, 255, 255, 0.1); /* Slightly transparent background */
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px); /* Adds a blur effect for modern look */
+}
+
+
+.card {
+    border: none;
+    border-radius: 15px;
+    overflow: hidden;
+    margin-bottom: 20px;
+}
+
+.card-header {
+    background: linear-gradient(10deg, #092756, #0056b3);
+    padding: 20px;
+    color: #fff;
+    border-radius: 15px 15px 0 0;
+    text-align: center;
+}
+
+.card-title {
+    margin: 0;
+    font-size: 1.5em;
+    font-weight: bold;
+}
+
+input {
+    width: 100%;
+    margin-bottom: 10px;
+    background: rgba(0, 0, 0, 0.5);
+    border: none;
+    outline: none;
+    padding: 10px;
+    font-size: 13px;
+    color: #fff;
+    text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    box-shadow: inset 0 -5px 45px rgba(100, 100, 100, 0.2), 0 1px 1px rgba(255, 255, 255, 0.2);
+    -webkit-transition: box-shadow 0.5s ease;
+    -moz-transition: box-shadow 0.5s ease;
+    -o-transition: box-shadow 0.5s ease;
+    -ms-transition: box-shadow 0.5s ease;
+    transition: box-shadow 0.5s ease;
+}
+
+.icon-container {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    font-size: 2rem; /* Adjust the size of the icon */
+}
+
+input:focus {
+    box-shadow: inset 0 -5px 45px rgba(100, 100, 100, 0.4), 0 1px 1px rgba(255, 255, 255, 0.2);
+    background: rgba(0, 0, 0, 0.5); /* Darkens the input background on focus */
+}
+
+.btn-primary {
+    background-color: #092756;
+    border-color: #092756;
+    transition: background-color 0.3s, border-color 0.3s;
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.btn-primary:hover {
+    background-color: #0056b3;
+    border-color: #0056b3;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+}
+
+.btn-primary:active {
+    background-color: #004080;
+    border-color: #004080;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.result {
+    background-color: #e9f7ef;
+    border: 1px solid #d4edda;
+    border-radius: 10px;
+    margin: 20px;
+    padding: 20px;
+    margin-top: 20px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    animation: fadeIn 1s ease-in-out;
+}
+
+h2 {
+    margin: 0;
+    font-weight: bold;
+}
+
+h4 {
+    font-size: 0.9em;
+}
