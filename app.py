@@ -11,7 +11,7 @@ app = Flask(__name__)
 
 app.config['UPLOAD_FOLDER'] = "/tmp/uploads"
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-
+print("WEB REDIS:", conn)
 # Create queue
 q = Queue(connection=conn)
 
