@@ -1,66 +1,65 @@
 from flask import Flask, request, render_template, redirect, url_for, jsonify, abort, send_file
 import os
-import threading
 import uuid
-import logging
+import time
+import threading
+from queue import Queue
 from datetime import datetime
 from analyzer.analyzer import Analyzer
-
 
 # App setup
 app = Flask(__name__)
 
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
 app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'static', 'uploads')
-
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-
-# In-memory job store
+# Job storage (in-memory)
 jobs = {}
-lock = threading.Lock()
 
+# Job queue (IMPORTANT)
+job_queue = Queue()
 
-# Background worker
-def run_analysis(job_id, filepath, filename):
-    logger.info(f"Job started: {job_id}")
+# Background worker (runs forever)
+def worker():
+    while True:
+        job_id = job_queue.get()
 
-    try:
-        with lock:
-            jobs[job_id]["status"] = "Reading statement..."
+        job = jobs.get(job_id)
+        if not job:
+            continue
 
-        statement = Analyzer(filepath)
+        try:
+            jobs[job_id]["status"] = "Processing..."
 
-        with lock:
-            jobs[job_id]["status"] = "Analyzing transactions..."
+            analyzer = Analyzer(job["file_path"])
 
-        summary = statement.risk_indicators().to_dict()
+            # 1. compute summary
+            summary = analyzer.risk_indicators().to_dict()
 
-        with lock:
-            jobs[job_id]["status"] = "Completed"
+            # 2. generate report ONCE
+            output = analyzer.generate_excel_report()
+
             jobs[job_id]["summary"] = summary
-            jobs[job_id]["file_path"] = filepath
-            jobs[job_id]["filename"] = filename
+            jobs[job_id]["report_file"] = output  # store result once
 
-        logger.info(f"Job completed: {job_id}")
+            jobs[job_id]["status"] = "Completed"
 
-    except Exception as e:
-        logger.exception("Job failed")
-
-        with lock:
+        except Exception as e:
             jobs[job_id]["status"] = "Error"
             jobs[job_id]["result"] = str(e)
+
+        job_queue.task_done()
+
+# Start worker thread ON APP START (critical)
+threading.Thread(target=worker, daemon=True).start()
 
 # Home page
 @app.route('/')
 def main():
     return render_template('index.html')
 
-# Upload + start job
+# Upload endpoint
 @app.route('/extract', methods=['POST'])
 def extract():
 
@@ -77,35 +76,29 @@ def extract():
 
     job_id = str(uuid.uuid4())
 
-    with lock:
-        jobs[job_id] = {
-            "status": "Queued",
-            "result": None,
-            "summary": None,
-            "file_path": filepath,
-            "filename": file.filename
-        }
+    jobs[job_id] = {
+        "status": "Queued",
+        "file_path": filepath,
+        "filename": file.filename,
+        "summary": None,
+        "result": None
+    }
 
-    thread = threading.Thread(
-        target=run_analysis,
-        args=(job_id, filepath, file.filename),
-        daemon=True
-    )
-    thread.start()
+    # Push job into queue (NOT threading)
+    job_queue.put(job_id)
 
     return redirect(url_for("processing", job_id=job_id))
-
 
 # Processing page
 @app.route("/processing/<job_id>")
 def processing(job_id):
     return render_template("processing.html", job_id=job_id)
 
-# Status API
+# Status API (frontend polling)
 @app.route("/status/<job_id>")
 def status(job_id):
-    with lock:
-        job = jobs.get(job_id)
+
+    job = jobs.get(job_id)
 
     if not job:
         return jsonify({"status": "Unknown job"})
@@ -119,8 +112,7 @@ def status(job_id):
 @app.route("/result/<job_id>")
 def result(job_id):
 
-    with lock:
-        job = jobs.get(job_id)
+    job = jobs.get(job_id)
 
     if not job:
         return abort(404)
@@ -138,14 +130,12 @@ def result(job_id):
 @app.route("/download/<job_id>")
 def download(job_id):
 
-    with lock:
-        job = jobs.get(job_id)
+    job = jobs.get(job_id)
 
     if not job or job.get("status") != "Completed":
         return abort(404)
 
-    analyzer = Analyzer(job["file_path"])
-    output = analyzer.generate_excel_report()
+    output = job["report_file"]  # reused result
 
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     filename = job.get("filename", "report.xlsx")
@@ -157,9 +147,7 @@ def download(job_id):
         download_name=download_name,
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-
-
-# Run
+# Run (Render-safe)
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
