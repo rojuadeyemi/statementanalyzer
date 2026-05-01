@@ -36,6 +36,7 @@ def extract():
 
     # Enqueue job
     q.enqueue(run_analysis, job_id, filepath, file.filename)
+    print("ENQUEUED JOB:", job.id)
 
     return redirect(url_for("processing", job_id=job_id))
 
