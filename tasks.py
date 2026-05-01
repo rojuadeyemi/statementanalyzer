@@ -1,6 +1,6 @@
 import json
 from analyzer.analyzer import Analyzer
-from redis_conn import conn   # ✅ ADD THIS
+from redis_conn import conn
 
 def run_analysis(job_id, filepath, filename):
     print("JOB STARTED:", job_id)
