@@ -87,7 +87,10 @@ def extract():
     # Create job
     job_id = str(uuid.uuid4())
 
-    jobs[job_id]["status"] = "Extracting Statement..."
+    jobs[job_id] = {
+        "status": "Extracting Statement...",
+        "result": None
+    }
 
     # Start background thread
     thread = threading.Thread(
