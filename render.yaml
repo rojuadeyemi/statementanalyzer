@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: flask-app
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+
+  - type: worker
+    name: rq-worker
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python worker.py
+
+  - type: redis
+    name: redis
