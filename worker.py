@@ -1,10 +1,8 @@
-import os
-from rq import Worker, Queue, Connection
+from rq import Worker, Queue
 from redis_conn import conn
 
 listen = ['default']
 
 if __name__ == '__main__':
-    with Connection(conn):
-        worker = Worker(map(Queue, listen))
-        worker.work()
+    worker = Worker([Queue(name, connection=conn) for name in listen])
+    worker.work()
