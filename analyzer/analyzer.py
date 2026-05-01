@@ -17,10 +17,6 @@ class Analyzer:
         self.opening_balance = None
         self.closing_balance = None
 
-        #Create reports folder
-        os.makedirs('reports', exist_ok=True)
-        #print(self.df)
-
         # Ensure key columns exist
         expected_cols = {"date", "amount", "category", "type", "monthyear"}
         missing = expected_cols - set(self.df.columns)
@@ -36,24 +32,11 @@ class Analyzer:
 
         if self.account_name:
             self.account_name = self.account_name.upper()
-
-        elif self.transfer_only_inflow ['receiver'].notna().any():
-            
-            self.account_name = self.transfer_only_inflow ['receiver'].value_counts().idxmax().upper()
-
-        elif self.transfer_only_outflow['sender'].notna().any():
-            
-            self.account_name = self.transfer_only_outflow['sender'].value_counts().idxmax().upper()
-            
-        self.df = self.df.sort_values('date')
+        
         if 'balance' in self.df.columns:
             self.opening_balance = self.df['balance'].iloc[0] + self.df['amount'].iloc[0]*(-1 if self.df['type'].iloc[0]=='credit' else 1)
 
-        
-
-    # ========================
     # Cashflow Analysis
-    # ========================
     def cashflow_summary(self) -> pd.DataFrame:
         """Summarize inflow and outflow trends by month."""
         summary = (
@@ -88,6 +71,41 @@ class Analyzer:
         summary.reset_index(inplace=True)
         return summary
 
+    def cashflow_summary_wk(self) -> pd.DataFrame:
+        """Summarize inflow and outflow trends by week."""
+        summary = (
+            self.df.pivot_table(
+                index="weekno",
+                columns="type",
+                values="amount",
+                aggfunc=["sum", "count"],
+                fill_value=0,
+            )
+            .sort_index(ascending=False)
+        )
+        
+        summary.columns = [f"{a}_{b}" for a, b in summary.columns]
+
+        weekly_debit = summary.get("sum_debit", 0)
+
+        summary["net_cashflow"] = summary.get("sum_credit", 0) - weekly_debit
+        summary["avg_txn_size"] = (
+            summary.get("sum_credit", 0) + weekly_debit
+        ) / (summary.get("count_credit", 1) + summary.get("count_debit", 1))
+
+        summary["avg_inflow_size"] = summary.get("sum_credit", 0)/ summary.get("count_credit", 1)
+        summary["avg_outflow_size"] =weekly_debit/ summary.get("count_debit", 1)
+        
+        if 'balance' in self.df.columns:
+            # Group by month
+            grouped = self.df.groupby("weekno")
+            summary['closing_balance'] = grouped['balance'].last()
+            summary['opening_balance'] = summary['closing_balance'].shift(-1).fillna(self.opening_balance)
+        
+        summary.reset_index(inplace=True)
+        return summary
+    
+
     def cashflows_by_category(self):
         """Monthly cashflow breakdown by category."""
         
@@ -105,9 +123,7 @@ class Analyzer:
         result.reset_index(inplace=True)
         return result
 
-    # ========================
     # Behavioral Analytics
-    # ========================
     def inflow_sources(self) -> pd.DataFrame:
         """Identify frequent senders (incoming transfers)."""
         
@@ -159,9 +175,7 @@ class Analyzer:
         else:
             return pd.DataFrame()
 
-    # ========================
     # Risk & Behavioral Insights
-    # ========================
     def risk_indicators(self):
         """Compute behavioral red flags and liquidity patterns."""
         inflow = self.inflows["amount"]
@@ -169,6 +183,8 @@ class Analyzer:
         loan_repayments = self.df[self.df["category"] == "loan_repayment"]["amount"]
         loan_disbursements = self.df[self.df["category"] == "loan"]["amount"]
         average_inflow = self.transfer_only_inflow['amount'].mean()
+
+        flight_risk = "Exist" if (self.df["category"] == "travelling").sum() > 0 else "Not exist"
         
         if 'balance' in self.df.columns:
             self.closing_balance = self.df['balance'].iloc[-1]
@@ -185,21 +201,20 @@ class Analyzer:
                             "Total Outflow": int(abs(outflow.sum())),
                             "Average Inflow": int(np.nan_to_num(average_inflow)),
                             "Net Position": int(inflow.sum() - abs(outflow.sum())),
-                            "Opening Balance":self.opening_balance,
-                            "Closing Balance":self.closing_balance,
+                            "Opening Balance":round(self.opening_balance,2),
+                            "Closing Balance":round(self.closing_balance,2),
                             "Inflow-Outflow Ratio": round(inflow.sum() / abs(outflow.sum()), 2) if abs(outflow.sum()) > 0 else None,
                             "Debit-Credit Frequency Ratio": round(len(self.outflows) / len(self.inflows), 2) if len(self.inflows) > 0 else None,
                             "Loan Repayment Amount": int(loan_repayments.sum()),
                             "Loan Repayment Count": len(loan_repayments),
                             "Loan Disbursement Amount": int(abs(loan_disbursements.sum())),
                             "Loan Disbursement Count": len(loan_disbursements),
-                            "Airtime Usage": abs(self.df[self.df["category"] == "airtime"]["amount"].sum())
+                            "VAS": abs(self.df[self.df["category"] == "VAS"]["amount"].sum()),
+                            "Flight Risk": flight_risk
 
                         }, name="value")
 
-    # ========================
     # Summary Output
-    # ========================
 
     def output(self):
         """Print structured report summary."""
@@ -259,11 +274,33 @@ class Analyzer:
             self.risk_indicators().to_excel(writer, sheet_name='Statement Summary')
             self.df.to_excel(writer, sheet_name='Transaction Data', index=False)
             self.cashflow_summary().to_excel(writer, sheet_name='Month-on-Month Cashflow', index=False)
+            self.cashflow_summary_wk().to_excel(writer, sheet_name='Week-on-Week Cashflow', index=False)
             self.cashflows_by_category().to_excel(writer, sheet_name='Category Cashflow', index=False)
             self.account_sweep().to_excel(writer, sheet_name='Account Sweep', index=False)
             self.inflow_sources().to_excel(writer, sheet_name='Inflow By Sender', index=False)
             self.outflow_destinations().to_excel(writer, sheet_name='Outflow By Receiver', index=False)
             self.average_monthly_balance().to_excel(writer, sheet_name='Account Balance', index=False)
+
+    def generate_excel_report(self):
+        """Generate Excel file in memory and return buffer."""
+        from io import BytesIO
+
+        output = BytesIO()
+
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            self.risk_indicators().to_excel(writer, sheet_name='Statement Summary')
+            self.df.to_excel(writer, sheet_name='Transaction Data', index=False)
+            self.cashflow_summary().to_excel(writer, sheet_name='Month-on-Month Cashflow', index=False)
+            self.cashflow_summary_wk().to_excel(writer, sheet_name='Week-on-Week Cashflow', index=False)
+            self.cashflows_by_category().to_excel(writer, sheet_name='Category Cashflow', index=False)
+            self.account_sweep().to_excel(writer, sheet_name='Account Sweep', index=False)
+            self.inflow_sources().to_excel(writer, sheet_name='Inflow By Sender', index=False)
+            self.outflow_destinations().to_excel(writer, sheet_name='Outflow By Receiver', index=False)
+            self.average_monthly_balance().to_excel(writer, sheet_name='Account Balance', index=False)
+
+        output.seek(0)  # 🔥 VERY IMPORTANT
+        return output
+
 
     def generate_json_report(self) -> str:
         """Return a structured JSON report for API or dashboard consumption."""
@@ -296,6 +333,7 @@ class Analyzer:
 
     def save_json(self):
         # Writing to a file
+        os.makedirs('reports', exist_ok=True)
         report_file = os.path.join("reports", f"{self.file_name}_{self.timestamp}.json")
         with open(report_file, "w") as file:
             json.dump(self.generate_json_report(), file)

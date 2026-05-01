@@ -2,14 +2,44 @@ import re
 from analyzer.processor.moniepoint import extract_transaction_monie_correct
 from analyzer.processor.moniepoint_v2 import extract_transaction_moniepoint
 from analyzer.processor.wema import extract_transaction_wema
-#from analyzer.processor.kuda import extract_transaction_kuda
+from analyzer.processor.taj import extract_transaction_taj
 from analyzer.processor.opay import extract_transaction_opay
 from analyzer.processor.palmpay import extract_transaction_palmpay
 from analyzer.processor.zenith import extract_transaction_zenith
 from analyzer.processor.fidelity import extract_transaction_fidelity
+from analyzer.processor.premium import extract_transaction_premium
+from analyzer.processor.sterling import extract_transaction_sterling
 from analyzer.processor.generic import extract_transaction_generic
 from analyzer.processor.base import BaseProcessor
 
+
+class PtrustProcessor(BaseProcessor):
+    name = "Premium Trust"
+
+    def detect(self, first_text, last_text):
+        return bool(re.search(r"contactpremium@premiumtrustbank.com", last_text))
+
+    def extract(self):
+        return extract_transaction_premium(self.pdf)
+    
+class SterlingProcessor(BaseProcessor):
+    name = "Sterling"
+
+    def detect(self, first_text, last_text):
+        return bool(re.search(r"www.sterling.ng", first_text))
+
+    def extract(self):
+        return extract_transaction_sterling(self.pdf)
+
+class TAJProcessor(BaseProcessor):
+    name = "TAJ"
+
+    def detect(self, first_text, last_text):
+        return bool(re.search(r"tajconnect@tajbank.com", first_text))
+
+    def extract(self):
+        return extract_transaction_taj(self.pdf)
+        
 class MoniepointProcessor(BaseProcessor):
     name = "Moniepoint"
 
@@ -82,7 +112,8 @@ class OpayProcessor(BaseProcessor):
     name = "Opay"
 
     def detect(self, first_text, last_text):
-        return bool(re.search(r"Note: Current Balance includes OWealth Balance|Reversal Transaction Settlement", first_text, re.IGNORECASE))
+        return bool(re.search(r"Note: Current Balance includes OWealth Balance|Reversal Transaction Settlement", first_text, re.IGNORECASE) or re.search(r"Pos-service@opay", last_text, re.IGNORECASE)
+                   )
 
     def extract(self):
         return extract_transaction_opay(self.pdf)

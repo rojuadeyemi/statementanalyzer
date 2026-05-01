@@ -19,11 +19,6 @@ body {
     background-image: url('/static/img/LB_BG.webp');
 }
 
-.after {
-
-    background-image: url('/static/img/overlay-bg.jpg');
-    }
-
 .container {
     margin: auto;
     max-width: 500px;
@@ -33,20 +28,6 @@ body {
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
     backdrop-filter: blur(10px); /* Adds a blur effect for modern look */
 }
-
-.container-after {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    margin: 10px; /* Optional: adds some spacing from the bottom and left edges */
-    max-width: 700px;
-    padding: 10px;
-    background-color: rgba(255, 255, 255, 0.1); /* Slightly transparent background */
-    border-radius: 15px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-    backdrop-filter: blur(10px); /* Adds a blur effect for modern look */
-}
-
 
 .card {
     border: none;
@@ -89,12 +70,6 @@ input {
     transition: box-shadow 0.5s ease;
 }
 
-.icon-container {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    font-size: 2rem; /* Adjust the size of the icon */
-}
 
 input:focus {
     box-shadow: inset 0 -5px 45px rgba(100, 100, 100, 0.4), 0 1px 1px rgba(255, 255, 255, 0.2);
@@ -143,4 +118,19 @@ h2 {
 
 h4 {
     font-size: 0.9em;
+}
+
+.upload-area{
+border:2px dashed #007bff;
+padding:40px;
+text-align:center;
+border-radius:10px;
+background:#f8f9fa;
+cursor:pointer;
+transition:0.2s;
+}
+
+.upload-area.dragover{
+background:#e9f5ff;
+border-color:#0056b3;
 }

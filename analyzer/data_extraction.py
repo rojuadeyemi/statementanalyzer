@@ -3,7 +3,7 @@ import numpy as np
 import json
 from dateutil.relativedelta import relativedelta
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, Type, Generic, TypeVar
+from typing import Dict, Any, Optional, Type, Generic, TypeVar, Union,Tuple
 from enum import Enum
 from analyzer.router import extract_tables_from_pdf
 from analyzer.auxilliary import transaction_data,extract_sender_receiver
@@ -51,10 +51,12 @@ class BaseStatementProcessor(ABC, Generic[T]):
         self.df['weekno'] = iso.year * 100 + iso.week
     
     def apply_date_cutoff(self, months=36):
+        # remove redundancies - Opay
+        self.df = self.df[~self.df['narration'].str.contains('OWealth Withdrawal|Spend & Save Deposit', case=False, na=False)]
         if 'date' in self.df.columns:
             cutoff = self.df['date'].max() - relativedelta(months=months)
             self.df = self.df[self.df['date'] >= cutoff]
-
+            
     def process(self) -> pd.DataFrame:
         if not self.validate_data_format():
             raise ValueError("Invalid data format")
@@ -62,7 +64,7 @@ class BaseStatementProcessor(ABC, Generic[T]):
         self.df = self.extract_transactions()
         if self.df.empty:
             return self.df
-
+            
         self.normalize_fields()
         self.enrich_dates()
         self.apply_date_cutoff()
@@ -80,7 +82,6 @@ class MBSProcessor(BaseStatementProcessor[Dict[str, Any]]):
         'PBalance': 'balance'}
     
     def validate_data_format(self) -> bool:
-        #print("Validating MBS data format", self.data)
         return isinstance(self.data, dict) and 'TicketNo' in self.data
 
     def extract_transactions(self) -> pd.DataFrame:
@@ -116,6 +117,7 @@ class PDFProcessor(BaseStatementProcessor[pd.DataFrame]):
     def extract_transactions(self) -> pd.DataFrame:
         try:
             if isinstance(self.data, pd.DataFrame):
+                
                 return self.data
             else:
                 raise ValueError(f"Unexpected data format for PDF data: {self.data}")
@@ -190,16 +192,16 @@ class GenericProcessor(BaseStatementProcessor[Dict[str, Any]]):
     def extract_transactions(self) -> pd.DataFrame:
         try:
 
-            transaction_data = (
+            transaction_data_ = (
                     self.data.get('transactions') or
                     self.data.get('data') or
                     self.data.get('records', [])
             )
 
-            if isinstance(transaction_data, str):
-                transaction_data = json.loads(transaction_data)
+            if isinstance(transaction_data_, str):
+                transaction_data_ = json.loads(transaction_data_)
 
-            return pd.DataFrame(transaction_data)
+            return pd.DataFrame(transaction_data_)
 
         except (json.JSONDecodeError, KeyError) as e:
             raise ValueError(f"Error parsing generic data: {e}")
@@ -218,20 +220,20 @@ class GenericProcessor(BaseStatementProcessor[Dict[str, Any]]):
 class BaseDataTransformer:
     """Base class for common data transformation methods."""
     CATEGORY_RULES = [
-            ('reversal', r'revers|rvsl|REV-|RETURNED'),
-            ('airtime', r'airtime|mtn|airtel|glo|9mobile|VTU|Voucher|Data purchase|Data subscription|Internet bundle|Data renewal|Recharge card|recharge|data plan|SME data purchase|data bundle|Night plan|Unlimited data'),
-            ('salary',r'monthly pay|pay roll|salary|gross pay|net pay|income|payroll|/[A-Z]{2}\s+A$'),
-            ('loan_repayment', r'loan|remita|payday|pdl|repayment|Loan installment|EMI payment'),
+            ('reversal', r'revers|rvsl|REV-|RETURNED|refund'),
+            ('VAS', r'Startimes|gotv|dstv|electricity|cable|airtime|\bmtn\b|airtel|\bglo\b|9mobile|VTU|Voucher|Internet bundle|Recharge card|recharge|Night plan|Data'),
+            ('salary',r'monthly pay|pay roll|salary|gross pay|net pay|income|payroll'),
+            ('loan_repayment', r'loan|remita|payday|pdl|repayment|EMI payment|AutoDebit|Auto Debit'),
             ('loan_credit', r'loan|Credit facility|Disbursed amount|Bank facility|disbursement|FairMoney credit|Salary advance|Mortgage credit|Aella Credit deposit|QuickCheck funds'),
             ('bonus/allowance', r'13th month salary|allowance|bonus|/[A-Z]{2}\s+A$'),
             ('betting', r'\bbet\b|betting|MSport|1Xbet|PariPesa'),
             ('turnover', r'Turnover'),
             ('drift', r'Contribution'),
-            ('travelling', r'Embassy payment|flight|VISA|VFS Global|TLS Contact|IRCC|USCIS|Express Entry|Airfare|One-way ticket|IELTS|TOEFL|WES fee|CAS deposit|SEVIS fee|Proof of Funds|GIC Payment|Form A'),
-            ('transfer', r'Received|Send|Sent|INWARD|OUTWARD|TRSF|HYD|trf|transfer|TRANSFER|NIBSS|POS|RTGS|NEFT|IMPS|payment|merchant settlement|GTWORLD|NIP|HBR')
+            ('travelling', r'Embassy|flight|VISA|VFS Global|TLS Contact|IRCC|USCIS|Express Entry|Airfare|One-way ticket|IELTS|TOEFL|WES fee|CAS deposit|SEVIS fee|Proof of Funds|GIC Payment|Form A'),
+            ('transfer', r'From|\*\*\*|Transfer|Cash|Received|Send|Sent|INWARD|OUTWARD|TRSF|HYD|trf|NIBSS|POS|RTGS|NEFT|IMPS|payment|merchant settlement|GTWORLD|NIP|HBR')
                     ]
     
-    EXCLUSIONS = r'charge|commission|Electronic Money|VAT|TAX DEDUCTION'
+    EXCLUSIONS = r'charge|commission|Electronic Money|levy'
 
     def categorize_narration(self):
         if self.df.empty or 'narration' not in self.df.columns:
@@ -253,7 +255,7 @@ class BaseDataTransformer:
             # Common exclusions
             if category in {
                 'transfer', 'salary', 'loan_repayment',
-                'loan_credit', 'betting', 'travelling', 'airtime'
+                'loan_credit', 'betting', 'travelling', 'VAS'
             }:
                 mask &= ~narration.str.contains(
                     self.EXCLUSIONS, regex=True, na=False,case=False
@@ -265,6 +267,9 @@ class BaseDataTransformer:
 
             if category == 'salary':
                 mask &= (self.df['type'] == 'credit') & (self.df['amount'] > 30_000)
+            if category == 'salary':
+                mask &= (self.df['type'] == 'debit')
+                category = 'salary payment'
             elif category == 'loan_credit':
                 mask &= (self.df['type'] == 'credit')
                 category = 'loan'
@@ -276,50 +281,13 @@ class BaseDataTransformer:
 
             
         return self.df
-    
-class ProcessorFactory:
-    """Factory class for creating statement processors."""
 
-    _processors: Dict[StatementType, Type[BaseStatementProcessor]] = {
-        StatementType.MBS: MBSProcessor,
-        StatementType.MONO: MonoProcessor,
-        StatementType.PDF: PDFProcessor,
-        StatementType.GENERIC: GenericProcessor
-    }
 
-    @classmethod
-    def register_processor(cls, statement_type: StatementType,
-                           processor_class: Type[BaseStatementProcessor]) -> None:
-        """Register a new statement processor class."""
-        cls._processors[statement_type] = processor_class
+class InputLoader:
+    """Handles all input normalization and loading."""
 
     @staticmethod
-    def _sanitize_path(value: str) -> str:
-        """Fix corrupted UNC or Windows paths caused by escape sequences."""
-        # Map ASCII control chars to their intended literal escape form
-        ascii_fix_map = {
-            '\x07': r'\\a',  # BEL (\a)
-            '\x08': r'\\b',  # Backspace (\b)
-            '\x0c': r'\\f',  # Form feed (\f)
-            '\x0a': r'\\n',  # Newline (\n)
-            '\x0d': r'\\r',  # Carriage return (\r)
-            '\x09': r'\\t',  # Tab (\t)
-            '\x0b': r'\\v',  # Vertical tab (\v)
-        }
-
-        for bad, fix in ascii_fix_map.items():
-            value = value.replace(bad, fix)
-
-        # Fix UNC prefix — ensure starts with double backslash
-        if value.startswith("\\") and not value.startswith("\\\\"):
-            value = "\\" + value
-
-        return value
-
-    @staticmethod
-    def _decode_json(value: Any, max_depth: int = 100) -> dict:
-        """Decode nested JSON safely up to a maximum depth."""
-
+    def _decode_json(value: Any, max_depth: int = 5) -> dict:
         obj = value
         for _ in range(max_depth):
             if isinstance(obj, str):
@@ -335,66 +303,82 @@ class ProcessorFactory:
         return obj
 
     @classmethod
-    def format_data(cls, payload: Any) -> dict | pd.DataFrame:
+    def load(cls, payload: Any) -> Tuple[Union[dict, pd.DataFrame], str | None, str | None]:
         """
-        Standardize input from dict, Path, or string.
-        Handles:
-        - dicts with 'bankStatement'
-        - UNC / Windows / local file paths (.pdf, .json, .txt)
-        - raw JSON strings
+        Returns:
+            (data, name, account_number)
         """
 
-        # 1 Handle dict input
+        # 1. Dict input
         if isinstance(payload, dict):
             if "bankStatement" in payload:
-                return {"bankStatement": cls._decode_json(payload["bankStatement"])}, None, None
-            
+                data = cls._decode_json(payload["bankStatement"])
+                return {"bankStatement": data}, None, None
+
             return cls._decode_json(payload), None, None
 
-        # 2 Handle string or Path that may represent a file
+        # 2. File path (str or Path)
         if isinstance(payload, (str, Path)):
+            path = Path(payload)
 
-            # Optional: only bother if it looks like a file path
-            if any(ext in payload.lower() for ext in [".json", ".pdf", ".txt"]):
-                try:
-                    # Sanitize UNC or escaped path
-                    clean_path = Path(cls._sanitize_path(payload))
+            if not path.exists():
+                raise FileNotFoundError(f"Invalid path: {path}")
 
-                    # Resolve the path fully
-                    if clean_path.exists():
-                        suffix = clean_path.suffix.lower()
-                        if suffix in (".json", ".txt"):
-                            return cls._decode_json(clean_path.read_text(encoding="utf-8")), None, None
-                        elif suffix == ".pdf":
-                            
-                            return extract_tables_from_pdf(clean_path)
-                except Exception as e:
-                    # If path handling fails (e.g. invalid chars), treat it as a JSON string
-                    print(f"[WARN] Could not open path ({e}). Treating input as JSON text.")
+            suffix = path.suffix.lower()
 
-        # 3 Handle plain JSON string (fallback)
+            if suffix in (".json", ".txt"):
+                content = path.read_text(encoding="utf-8")
+                return cls._decode_json(content), None, None
+
+            elif suffix == ".pdf":
+                # Delegate to your extractor
+                return extract_tables_from_pdf(path)
+
+        # 3. Raw JSON string
         if isinstance(payload, str):
             return cls._decode_json(payload), None, None
 
-        raise ValueError(
-            "Unsupported input type. Expected dict, valid file path (.pdf/.json/.txt), or JSON string."
-        )
+        raise ValueError("Unsupported input type")
+
+
+class ProcessorFactory:
+    """Responsible ONLY for selecting processors."""
+
+    _processors: Dict[StatementType, Type[BaseStatementProcessor]] = {
+        StatementType.MBS: MBSProcessor,
+        StatementType.MONO: MonoProcessor,
+        StatementType.PDF: PDFProcessor,
+        StatementType.GENERIC: GenericProcessor
+    }
 
     @classmethod
-    def create_processor(cls, data: Dict[str, Any],
-                         processor_type: Optional[StatementType] = None,
-                         **kwargs
-                         ) -> BaseStatementProcessor:
-        """
-        Create appropriate processor based on data format or explicit type
-        Auto-detection with fallback to generic processor.
-        """
+    def register_processor(cls, statement_type, processor_class):
+        cls._processors[statement_type] = processor_class
 
+    @classmethod
+    def create_processor(
+        cls,
+        data: Any,
+        processor_type: Optional[StatementType] = None,
+        **kwargs
+    ) -> BaseStatementProcessor:
+
+        # Explicit override
+        if processor_type:
+            return cls._processors[processor_type](data, **kwargs)
+        
+        # Auto-detection
         if isinstance(data, dict):
             if 'Details' in data:
                 return cls._processors[StatementType.MBS](data)
-            elif 'data' in data:
+
+            if 'result' in data:
+                parsed = json.loads(data['result'])
+                return cls._processors[StatementType.MBS](parsed)
+
+            if 'data' in data:
                 return cls._processors[StatementType.MONO](data)
+
         if isinstance(data, pd.DataFrame):
             return cls._processors[StatementType.PDF](data)
 
@@ -402,11 +386,11 @@ class ProcessorFactory:
 
 class DataExtractor(BaseDataTransformer):
 
-    def __init__(self, data):
+    def __init__(self, payload):
         super().__init__()
-        
-        self.data, self.account_name, self.account_number = ProcessorFactory.format_data(data) # returns raw dataframe or json dict
-        
+
+        self.data, self.account_name, self.account_number = InputLoader.load(payload)       
+
     def transform_data(self, processor_type: Optional[StatementType] = None,
                        field_mapping: Optional[Dict[str, str]] = None) -> pd.DataFrame:
         """Transform data using appropriate processor
@@ -420,15 +404,12 @@ class DataExtractor(BaseDataTransformer):
                 field_mapping=field_mapping
             )
             
-
             self.df = processor.process()
-
-
-            if self.df.empty:
-                return self.df
 
             # Final Categorization
             df = self.categorize_narration()
+
+            df = df.sort_values('date')
 
             return df, self.account_name, self.account_number
 

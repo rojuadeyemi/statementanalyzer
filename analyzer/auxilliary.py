@@ -8,7 +8,7 @@ import warnings
 def transaction_data(df):
 
     # Standardize column names
-    df = df.copy()
+    df = df.drop_duplicates().copy()
     df.columns = df.columns.str.lower()
 
     # Define column name patterns
@@ -18,6 +18,7 @@ def transaction_data(df):
         'balance': r'\w*balance\w*',
         'transaction_value': r'debit\/|amount'
     }
+    
 
     # Identify columns dynamically
     identified_columns = {key: next((col for col in df.columns if re.search(pattern, col)), None) for key, pattern in column_patterns.items()}
@@ -37,7 +38,7 @@ def transaction_data(df):
     # Clean and prepare data
     new_df = pd.DataFrame()
     new_df['date'] = clean_and_parse_dates(df[identified_columns['date']])
-
+    
     # Assign narration or category
     new_df['narration'] = df[identified_columns['remark']]
     if identified_columns['balance']:
@@ -104,6 +105,7 @@ def clean_and_parse_dates(series:pd.Series) -> pd.Series:
         "%d-%b-%Y",     # 01-Sep-2024
         "%d %b %Y",     # 01 Sep 2024
         "%d-%b-%y",     # 01-Sep-24
+        "%b %d,%Y %H:%M:%S"
     ]
 
     # Attempt formats in order

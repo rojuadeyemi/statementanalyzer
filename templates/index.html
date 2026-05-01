@@ -2,37 +2,100 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <link rel="icon" type="image/x-icon" href="/static/img/diabetes test.png">
-    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="/static/css/styles.css">
-    <title>Statement Analyzer</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+<link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='img/diabetes test.png') }}">
+
+<link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+<link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+
+<title>Statement Analyzer</title>
 </head>
+
 <body class="index">
-    <div class="icon-container">
-        <img src="{{ url_for('static', filename='img/icon3.png') }}" alt="Custom Icon" width="70" height="70">
-    </div>
-    <div class="container mt-5">
-        <div class="card shadow-lg">
-            <div class="card-header bg-primary text-white text-center">
-                <h2 class="card-title">Statement Analyzer</h2>
-            </div>
-            <div class="card-body">
-                <form action="/extract" method="POST" enctype="multipart/form-data" onsubmit="return validateFile()">
-                    <input type="file" name="file" class="form-control mb-3" required>
-                    <button type="submit" class="btn btn-primary w-100">Upload and Analyze</button>
-                    <p id="error-message" class="text-danger mt-2"></p>
-                </form>
-            </div>
-        </div>
-    </div>
-    <script src="static/js/validate.js"></script>
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+<div class="icon-container">
+<img src="{{ url_for('static', filename='img/icon3.png') }}" width="70" height="70">
+</div>
+
+<div class="container mt-5">
+
+<div class="card shadow-lg">
+
+<div class="card-header bg-primary text-white text-center">
+<h2 class="card-title">Statement Analyzer</h2>
+</div>
+
+<div class="card-body">
+
+<form action="/extract" method="POST" enctype="multipart/form-data" onsubmit="return startAnalysis()">
+
+<!-- Drag & Drop Area -->
+
+<div class="upload-area" id="upload-area">
+
+<p class="text-muted">
+<i class="fas fa-cloud-upload-alt fa-2x"></i>
+</p>
+
+<p class="text-muted">Drag & Drop your statement here</p>
+
+<p>or</p>
+
+<input type="file" name="file" id="fileInput" hidden>
+
+<button type="button" class="btn btn-outline-primary"
+onclick="document.getElementById('fileInput').click()">
+
+Select File
+
+</button>
+
+<p id="file-name" class="mt-2 text-success"></p>
+
+</div>
+
+
+<!-- Analyze button -->
+
+<button id="analyzeBtn" type="submit" class="btn btn-primary w-100 mt-3">
+
+Upload and Analyze
+
+</button>
+
+
+<!-- Loading indicator -->
+
+<div id="loading" class="text-center mt-3" style="display:none;">
+
+<div class="spinner-border text-primary"></div>
+
+<p class="mt-2">Processing statement... please wait</p>
+
+</div>
+
+
+<!-- Error message -->
+
+<p id="error-message" class="text-danger mt-2 text-center"></p>
+
+</form>
+
+</div>
+
+</div>
+
+</div>
+
+<script src="{{ url_for('static', filename='js/validate.js') }}"></script>
+
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
 </body>
-
 </html>
-

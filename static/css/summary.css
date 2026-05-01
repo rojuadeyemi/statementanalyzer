@@ -1,0 +1,113 @@
+.after {
+
+    background-image: url('/static/img/Zedvance_logo.jpg');
+    }
+
+.container-after {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    margin: 10px;
+    max-width: 700px;
+    padding: 10px;
+    background-color: rgba(228, 172, 172, 0.664); /* Slightly transparent background */
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(100, 228, 100, 0.1);
+    backdrop-filter: blur(10px); /* Adds a blur effect for modern look */
+}
+
+.icon-container {
+    position: absolute;
+    top: 2px;
+    left: 10px;
+    font-size: 2rem; /* Adjust the size of the icon */
+}
+
+.result {
+    background-color: #e9f7ef;
+    border: 1px solid #d4edda;
+    border-radius: 10px;
+    margin: 20px;
+    padding: 20px;
+    margin-top: 20px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    animation: fadeIn 1s ease-in-out;
+}
+
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr); /* default: 5 columns */
+    gap: 12px;
+    padding: 10px;
+}
+
+/* Medium screens */
+@media (max-width: 1200px) {
+    .summary-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* Small screens */
+@media (max-width: 768px) {
+    .summary-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+    .summary-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.summary-item {
+    padding: 12px;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    font-size: 0.9rem;
+}
+
+.summary-item b {
+    display: block;
+    font-size: 0.75rem;
+    color: #666;
+    margin-bottom: 5px;
+}
+
+.summary-item span {
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+
+/* Right column: summary items */
+.summary-grid {
+    flex: 2 1 600px; /* takes more space */
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 2fr)); 
+    gap: 15px;
+    max-height: 80vh; /* restrict vertical height */
+    overflow-y: auto; /* scroll within the summary column if needed */
+    padding: 10px;
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    background: #2a211a;
+}
+
+/* Each summary item */
+.summary-item {
+    display: flex;
+    justify-content: space-between;
+    padding:6px 10px;
+    border-radius: 5px;
+    background: white;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    font-size: 0.95rem;
+    transition: transform 0.1s;
+}
+.summary-item:hover {
+    transform: translateY(-2px);
+}

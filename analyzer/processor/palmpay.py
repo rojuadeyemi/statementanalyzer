@@ -3,6 +3,7 @@ import re
 
 def extract_transaction_palmpay(pdf):
     transactions = []
+    pattern = r"(\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2})\s+(.+?)\s+([A-Z0-9a-z]+)\s+([\+\-\d,.]+)\s+([\+\-\d,.]+)"
     for page in pdf.pages:
         text = page.extract_text()
         if not text:
@@ -10,7 +11,7 @@ def extract_transaction_palmpay(pdf):
         lines = text.split('\n')
         for line in lines:
             # Match lines with transaction-like format: date ref details amount balance
-            match = re.match(r"(\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2})\s+(.+?)\s+([A-Z0-9a-z]+)\s+([\+\-\d,.]+)\s+([\+\-\d,.]+)", line)
+            match = re.match(pattern, line)
             if not match:
                 continue
             timestamp = match.group(1)

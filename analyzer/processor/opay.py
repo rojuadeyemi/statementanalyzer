@@ -140,12 +140,49 @@ def extract_transaction_opay_new(pdf):
 
     return pd.DataFrame(transactions, columns=["Value Date", "Narration", "Amount","Balance"])
 
+def extract_transaction_opay_2026(pdf):
+
+    transactions = []
+    pattern =r"([A-Za-z]{3}\s+\d{2},\d{4}\s+\d{2}:\d{2}:\d{2})\s+(.+?)\s+(-?[\d,]+(?:\.\d+)?)\s+([\d,]+(?:\.\d+)?)\s+(-?[\d,]+(?:\.\d+)?)\s*(?:\s+₦\s*([\d,]+(?:\.\d+)?))?"
+
+    for page in pdf.pages:
+    
+        text = page.extract_text()
+        if not text:
+            continue
+        lines = text.split('\n')
+        for line in lines:
+            match = re.search(pattern, line)
+            if match:
+                date = match.group(1)
+                narration = match.group(2)
+                amount = match.group(3)
+                settlement = match.group(5)
+                balance = match.group(6)
+                transactions.append([date, narration, amount, settlement, balance])
+                continue
+
+    # Create DataFrame
+    df = pd.DataFrame(transactions, columns=["Tran Date","narration", "Amount(NGN)" , "Balance(NGN)","Settlement(NGN)"])
+    # Reverse to match oldest to newest chronology
+    df = df.iloc[::-1].reset_index(drop=True)
+
+    df['Amount(NGN)'] = df['Amount(NGN)'].str.replace(',', '').astype(float)
+    df['Balance(NGN)'] = df['Balance(NGN)'].str.replace(',', '').astype(float)
+    df['Settlement(NGN)'] = df['Settlement(NGN)'].str.replace(',', '').astype(float)
+    df['Balance(NGN)'] = df['Balance(NGN)'].fillna(df['Settlement(NGN)'].cumsum())
+
+
+    return df
+    
 def extract_transaction_opay(pdf):
     transactions = []
 
     # check if it is a special Opay statement
     if "Reversal Transaction Settlement" in pdf.pages[0].extract_text():
         return extract_transaction_opay_new(pdf)
+    if "Pos-service@opay" in pdf.pages[-1].extract_text():
+        return extract_transaction_opay_2026(pdf)
     
     # Build main regex
     prefix_re = r'^.*?'
