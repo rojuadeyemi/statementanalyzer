@@ -97,9 +97,9 @@ def extract():
 
     # Start background thread
     thread = threading.Thread(
-        target=run_analysis,
-        args=(job_id, filepath, file.filename)
-    )
+    target=run_analysis,
+    args=(job_id, filepath, file.filename),
+    daemon=True)
 
     thread.start()
 
