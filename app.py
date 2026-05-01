@@ -68,9 +68,7 @@ def result(job_id):
         job_id=job_id
     )
 
-# ----------------------
 # Download
-# ----------------------
 @app.route("/download/<job_id>")
 def download(job_id):
     data = conn.get(job_id)
