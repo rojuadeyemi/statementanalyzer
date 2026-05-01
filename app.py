@@ -11,7 +11,7 @@ app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
 
 # Upload folder
-app.config['UPLOAD_FOLDER'] = "/tmp/uploads")
+app.config['UPLOAD_FOLDER'] = "/tmp/uploads"
 
 # Ensure upload folder exists
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
