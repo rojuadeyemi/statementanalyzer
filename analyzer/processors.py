@@ -62,7 +62,7 @@ class MoniepointProcessor_v2(BaseProcessor):
 
     def extract(self):
         return extract_transaction_moniepoint(self.pdf)
-"""
+'''
 class KudaProcessor(BaseProcessor):
     name = "Kuda"
 
@@ -72,7 +72,7 @@ class KudaProcessor(BaseProcessor):
         )
 
     def extract(self):
-        return extract_transaction_kuda(self.pdf)"""
+        return extract_transaction_kuda(self.pdf)'''
 
 class PalmPayProcessor(BaseProcessor):
     name = "PalmPay"
