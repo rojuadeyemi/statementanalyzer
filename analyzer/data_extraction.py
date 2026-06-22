@@ -126,7 +126,7 @@ class PDFProcessor(BaseStatementProcessor[pd.DataFrame]):
 
     def normalize_fields(self) -> None:
 
-        self.df,nan_df = transaction_data(self.df)
+        self.df = transaction_data(self.df)
         
 
 class MonoProcessor(BaseStatementProcessor[Dict[str, Any]]):
@@ -268,6 +268,10 @@ class BaseDataTransformer:
             if category == 'salary':
                 mask &= (self.df['type'] == 'credit') & (self.df['amount'] > 30_000)
             if category == 'salary':
+                mask &= (self.df['type'] == 'debit') & (self.df['amount'] > 30_000)
+                category = 'salary_payment'
+                
+            if category == 'salary':
                 mask &= (self.df['type'] == 'debit')
                 category = 'salary payment'
             elif category == 'loan_credit':
@@ -331,7 +335,7 @@ class InputLoader:
                 return cls._decode_json(content), None, None
 
             elif suffix == ".pdf":
-                # Delegate to your extractor
+                # Delegate to extractor
                 return extract_tables_from_pdf(path)
 
         # 3. Raw JSON string
@@ -339,7 +343,6 @@ class InputLoader:
             return cls._decode_json(payload), None, None
 
         raise ValueError("Unsupported input type")
-
 
 class ProcessorFactory:
     """Responsible ONLY for selecting processors."""
@@ -371,10 +374,10 @@ class ProcessorFactory:
         if isinstance(data, dict):
             if 'Details' in data:
                 return cls._processors[StatementType.MBS](data)
-
+                
             if 'result' in data:
-                parsed = json.loads(data['result'])
-                return cls._processors[StatementType.MBS](parsed)
+                data = json.loads(data['result'])
+                return cls._processors[StatementType.MBS](data)
 
             if 'data' in data:
                 return cls._processors[StatementType.MONO](data)
