@@ -39,7 +39,7 @@ def transaction_data(df):
     new_df = pd.DataFrame()
     new_df['date'] = clean_and_parse_dates(df[identified_columns['date']])
     
-    # Assign narration or category
+    # Assign narration
     new_df['narration'] = df[identified_columns['remark']]
     if identified_columns['balance']:
         new_df['balance'] = clean_numeric_column(df[identified_columns['balance']])
@@ -121,7 +121,7 @@ def clean_and_parse_dates(series:pd.Series) -> pd.Series:
     if date_col.isna().all():
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=UserWarning)
-            date_col = pd.to_datetime(s, errors="coerce", dayfirst=True)
+            date_col = pd.to_datetime(s, errors="coerce", dayfirst=True,format="mixed")
 
     return date_col.dt.tz_localize(None)
 
