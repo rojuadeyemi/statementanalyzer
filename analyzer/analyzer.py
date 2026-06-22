@@ -4,6 +4,7 @@ from analyzer.data_extraction import DataExtractor
 from datetime import datetime,date
 import json
 import os
+from functools import cached_property
 
 class Analyzer:
     """Robust Statement Analyzer: Provides financial behavior and risk insights."""
@@ -18,49 +19,63 @@ class Analyzer:
         self.closing_balance = None
 
         # Ensure key columns exist
-        expected_cols = {"date", "amount", "category", "type", "monthyear"}
+        expected_cols = {'date', 'balance', 'amount', 'type', 'monthyear', 'weekno', 'category'}
         missing = expected_cols - set(self.df.columns)
         if missing:
             raise ValueError(f"Missing expected columns: {missing}")
 
         # Cache common dataframes
         self.non_others_df = self.df[self.df['category']!='others']
-        self.inflows =self.df[self.df["type"] == "credit"]
-        self.outflows = self.df[self.df["type"] == "debit"]
+        self.inflows =self.non_others_df[self.non_others_df["type"] == "credit"]
+        self.outflows = self.non_others_df[self.non_others_df["type"] == "debit"]
         self.transfer_only_inflow = self.inflows[self.inflows['category']=='transfer']
         self.transfer_only_outflow = self.outflows[self.outflows['category']=='transfer']
+
+        self.last_month_inflow = self.cashflow_summary['sum_credit'].iloc[-1]
+
+        self.data = (self.non_others_df.groupby(["monthyear","category"])["amount"]
+                     .sum()
+                     .unstack(fill_value=0)
+        )
 
         if self.account_name:
             self.account_name = self.account_name.upper()
         
         if 'balance' in self.df.columns:
-            self.opening_balance = self.df['balance'].iloc[0] + self.df['amount'].iloc[0]*(-1 if self.df['type'].iloc[0]=='credit' else 1)
+            first = self.df.iloc[0]
 
+            if first["type"] == "credit":
+                self.opening_balance = first["balance"] - first["amount"]
+            else:
+                self.opening_balance = first["balance"] + first["amount"]
+                
     # Cashflow Analysis
+    @cached_property
     def cashflow_summary(self) -> pd.DataFrame:
         """Summarize inflow and outflow trends by month."""
-        summary = (
-            self.df.pivot_table(
-                index="monthyear",
-                columns="type",
-                values="amount",
-                aggfunc=["sum", "count"],
-                fill_value=0,
-            )
+        summary =
+            (
+            self.non_others_df
+    .groupby(["monthyear","type"])["amount"]
+    .agg(["sum","count"])
+    .unstack(fill_value=0)
             .sort_index(ascending=False)
-        )
+            )
         
         summary.columns = [f"{a}_{b}" for a, b in summary.columns]
 
         monthly_debit = summary.get("sum_debit", 0)
 
-        summary["net_cashflow"] = summary.get("sum_credit", 0) - monthly_debit
-        summary["avg_txn_size"] = (
-            summary.get("sum_credit", 0) + monthly_debit
-        ) / (summary.get("count_credit", 1) + summary.get("count_debit", 1))
+        credit_count = summary["count_credit"].replace(0, np.nan)
+        debit_count = summary["count_debit"].replace(0, np.nan)
 
-        summary["avg_inflow_size"] = summary.get("sum_credit", 0)/ summary.get("count_credit", 1)
-        summary["avg_outflow_size"] =monthly_debit/ summary.get("count_debit", 1)
+        summary["net_cashflow"] = summary.get("sum_credit", 0) - monthly_debit
+        summary["avg_txn_size"] = ((
+            summary.get("sum_credit", 0) + monthly_debit
+        ) / (credit_count + debit_count)).fillna(0)
+
+        summary["avg_inflow_size"] = (summary.get("sum_credit", 0)/ credit_count).fillna(0)
+        summary["avg_outflow_size"] =(monthly_debit/ debit_count).fillna(0)
         
         if 'balance' in self.df.columns:
             # Group by month
@@ -70,17 +85,15 @@ class Analyzer:
         
         summary.reset_index(inplace=True)
         return summary
-
+        
+    @cached_property
     def cashflow_summary_wk(self) -> pd.DataFrame:
         """Summarize inflow and outflow trends by week."""
         summary = (
-            self.df.pivot_table(
-                index="weekno",
-                columns="type",
-                values="amount",
-                aggfunc=["sum", "count"],
-                fill_value=0,
-            )
+            self.non_others_df
+    .groupby(["weekno","type"])["amount"]
+    .agg(["sum","count"])
+    .unstack(fill_value=0)
             .sort_index(ascending=False)
         )
         
@@ -88,42 +101,57 @@ class Analyzer:
 
         weekly_debit = summary.get("sum_debit", 0)
 
-        summary["net_cashflow"] = summary.get("sum_credit", 0) - weekly_debit
-        summary["avg_txn_size"] = (
-            summary.get("sum_credit", 0) + weekly_debit
-        ) / (summary.get("count_credit", 1) + summary.get("count_debit", 1))
+        credit_count = summary["count_credit"].replace(0, np.nan)
+        debit_count = summary["count_debit"].replace(0, np.nan)
 
-        summary["avg_inflow_size"] = summary.get("sum_credit", 0)/ summary.get("count_credit", 1)
-        summary["avg_outflow_size"] =weekly_debit/ summary.get("count_debit", 1)
+        summary["net_cashflow"] = summary.get("sum_credit", 0) - weekly_debit
+        summary["avg_txn_size"] = ((
+            summary.get("sum_credit", 0) + weekly_debit
+        ) / (credit_count + debit_count)).fillna(0)
+
+        summary["avg_inflow_size"] = (summary.get("sum_credit", 0)/ credit_count).fillna(0)
+        summary["avg_outflow_size"] =(weekly_debit/ debit_count).fillna(0)
         
         if 'balance' in self.df.columns:
-            # Group by month
+            # Group by week
             grouped = self.df.groupby("weekno")
             summary['closing_balance'] = grouped['balance'].last()
             summary['opening_balance'] = summary['closing_balance'].shift(-1).fillna(self.opening_balance)
         
         summary.reset_index(inplace=True)
         return summary
-    
 
+    @property
+    def dtir(self):
+
+        repayment_data = self.data.get('loan_repayment')
+
+        latest_repayment = (
+            repayment_data.iloc[-1]
+            if repayment_data is not None and not repayment_data.empty
+            else 0
+        )
+
+        return latest_repayment/self.last_month_inflow if self.last_month_inflow > 0 else 0
+
+    @cached_property
     def cashflows_by_category(self):
         """Monthly cashflow breakdown by category."""
         
         result = (
-            self.non_others_df.pivot_table(
-                index="monthyear",
-                columns="category",
-                values="amount",
-                aggfunc=["sum", "count"],
-                fill_value=0,
-            )
+            self.non_others_df
+    .groupby(["monthyear","category"])["amount"]
+    .agg(["sum","count"])
+    .unstack(fill_value=0)
             .sort_index(ascending=False)
         )
+        
         result.columns = [f"{a}_{b}" for a, b in result.columns]
         result.reset_index(inplace=True)
         return result
 
     # Behavioral Analytics
+    @cached_property
     def inflow_sources(self) -> pd.DataFrame:
         """Identify frequent senders (incoming transfers)."""
         
@@ -137,6 +165,7 @@ class Analyzer:
             .sort_values("total_inflow", ascending=False)
         )
 
+    @cached_property
     def outflow_destinations(self) -> pd.DataFrame:
         """Identify common recipients (outgoing transfers)."""
         
@@ -150,6 +179,7 @@ class Analyzer:
             .sort_values("total_outflow", ascending=False)
         )
 
+    @cached_property
     def account_sweep(self) -> pd.DataFrame:
         """Detect repetitive round-trips (same receiver, same day, same amount)."""
         
@@ -161,6 +191,7 @@ class Analyzer:
 
         return sweep[sweep["repeat_count"] > 1]
 
+    @cached_property
     def average_monthly_balance(self) -> pd.DataFrame | None:
         """Estimate monthly average balance."""
         if 'balance' in self.df.columns:
@@ -176,84 +207,136 @@ class Analyzer:
             return pd.DataFrame()
 
     # Risk & Behavioral Insights
+    @cached_property
     def risk_indicators(self):
         """Compute behavioral red flags and liquidity patterns."""
         inflow = self.inflows["amount"]
         outflow = self.outflows["amount"]
-        loan_repayments = self.df[self.df["category"] == "loan_repayment"]["amount"]
-        loan_disbursements = self.df[self.df["category"] == "loan"]["amount"]
+        loan_repayments = self.data.get('loan_repayment')
+        loan_disbursements = self.data.get('loan')
         average_inflow = self.transfer_only_inflow['amount'].mean()
 
         flight_risk = "Exist" if (self.df["category"] == "travelling").sum() > 0 else "Not exist"
         
+        bal_floor = None
         if 'balance' in self.df.columns:
             self.closing_balance = self.df['balance'].iloc[-1]
+            balances = self.df.groupby("monthyear")["balance"].last()
+            bal_floor = np.nanpercentile(balances.values, 25) if len(balances) else 0
 
+        if not self.data.get("betting", pd.Series()).empty:
+            betting_amount = self.data.get("betting").max()
+        else:
+            betting_amount = 0
+            
+        betting_ratio = betting_amount/self.last_month_inflow if self.last_month_inflow > 0 else 0
+
+        monthly_net_cashflow = inflow - abs(outflow)
+
+        volatility = monthly_net_cashflow.std()/monthly_net_cashflow.mean()
+
+        sender_share = (
+        self.inflow_sources["total_inflow"]
+        / self.inflow_sources["total_inflow"].sum()
+    )
+    
+        largest_share = sender_share.max()
+        
         return pd.Series({  "Account Name": self.account_name,
                             "Account Number": self.account_number,
                             "Tenor": f'{self.df["monthyear"].nunique()} Months',
                             "Start Date": str(self.df["date"].min().date()),
                             "End Date": str(self.df["date"].max().date()),
-                            "Inflow Count": len(self.inflows),
-                            "Outflow Count": len(self.outflows),
-                            "Total Transactions": len(self.df),
+                            "Inflow Count": self.inflows.shape[0],
+                            "Outflow Count": self.outflows.shape[0],
+                            "Total Transactions": self.df.shape[0],
                             "Total Inflow": int(inflow.sum()),
                             "Total Outflow": int(abs(outflow.sum())),
                             "Average Inflow": int(np.nan_to_num(average_inflow)),
-                            "Net Position": int(inflow.sum() - abs(outflow.sum())),
+                            "Saving Rate": int(inflow.sum() - abs(outflow.sum()))/int(inflow.sum()) if inflow.sum() > 0 else 0,
                             "Opening Balance":round(self.opening_balance,2),
                             "Closing Balance":round(self.closing_balance,2),
                             "Inflow-Outflow Ratio": round(inflow.sum() / abs(outflow.sum()), 2) if abs(outflow.sum()) > 0 else None,
-                            "Debit-Credit Frequency Ratio": round(len(self.outflows) / len(self.inflows), 2) if len(self.inflows) > 0 else None,
+                            "Debit-Credit Frequency Ratio": round(self.outflows.shape[0] / self.inflows.shape[0], 2) if self.inflows.shape[0] > 0 else None,
                             "Loan Repayment Amount": int(loan_repayments.sum()),
                             "Loan Repayment Count": len(loan_repayments),
                             "Loan Disbursement Amount": int(abs(loan_disbursements.sum())),
                             "Loan Disbursement Count": len(loan_disbursements),
-                            "VAS": abs(self.df[self.df["category"] == "VAS"]["amount"].sum()),
-                            "Flight Risk": flight_risk
+                            "VAS Amount": abs(self.df[self.df["category"] == "VAS"]["amount"].sum()),
+                            "Flight Risk": flight_risk,
+                          "Concentration Risk": round(largest_share,2),
+                            "DTIR":self.dtir,
+                            "Zeroing Rate": self.zeroing_rate,
+                            "Balance Floor": bal_floor,
+                            "Betting Ratio": round(betting_ratio,2),
+                          "Cashflow Volatility": volatility
 
                         }, name="value")
 
-    # Summary Output
+    @property
+    def zeroing_rate(self):
 
+        """Calculate percentage of days account balance ends in zero value."""
+
+        # End of day balances
+        eod_bal = self.df.groupby("date")["balance"].last().dropna()
+
+        if len(eod_bal) == 0:
+            return 1.0
+        
+        inflow = (
+            self.transfer_only_inflow
+            .groupby("date")["amount"]
+            .sum()
+        )
+
+        common = eod_bal.index.intersection(inflow.index)
+
+        median_inflow = (np.nanmedian(inflow.loc[common].values) if len(common) else 0)
+
+        threshold = median_inflow * 0.05
+
+        return round(float(np.mean(eod_bal.loc[common].values < threshold)),2)
+
+    # Summary Output
     def output(self):
         """Print structured report summary."""
         
         print("\n" + "=" * 60)
         print("ACCOUNT STATEMENT SUMMARY")
         print("=" * 60)
-        print(self.risk_indicators())
+        print(self.risk_indicators)
 
         
         print("=" * 60)
         print("MONTH-ON-MONTH CASHFLOW")
         print("=" * 60)
-        print(self.cashflow_summary())
+        print(self.cashflow_summary)
 
         print("\n" + "=" * 60)
         print("CASHFLOW BY CATEGORY")
         print("=" * 60)
-        print(self.cashflows_by_category())
+        print(self.cashflows_by_category)
 
         print("\n" + "=" * 60)
         print("ROUND-TRIP TRANSFERS (ACCOUNT SWEEP)")
         print("=" * 60)
-        print(self.account_sweep())
+        print(self.account_sweep)
 
         print("\n" + "=" * 60)
         print("INFLOW SOURCES BY SENDER")
         print("=" * 60)
-        print(self.inflow_sources())
+        print(self.inflow_sources)
 
         print("\n" + "=" * 60)
         print("OUTFLOWS BY RECEIVER")
         print("=" * 60)
-        print(self.outflow_destinations())
+        print(self.outflow_destinations)
         
         print("\n" + "=" * 60)
         print("AVERAGE MONTHLY BALANCE")
         print("=" * 60)
-        print(self.average_monthly_balance())
+        print(self.average_monthly_balance)
 
         print("\n" + "=" * 60)
         print("LOAN REPAYMENT TRANSACTIONS")
@@ -271,15 +354,15 @@ class Analyzer:
     def save_excel_report(self):
         
         with pd.ExcelWriter(f"reports/{self.file_name}_{self.timestamp}.xlsx", engine='openpyxl') as writer:
-            self.risk_indicators().to_excel(writer, sheet_name='Statement Summary')
+            self.risk_indicators.to_excel(writer, sheet_name='Statement Summary')
             self.df.to_excel(writer, sheet_name='Transaction Data', index=False)
-            self.cashflow_summary().to_excel(writer, sheet_name='Month-on-Month Cashflow', index=False)
-            self.cashflow_summary_wk().to_excel(writer, sheet_name='Week-on-Week Cashflow', index=False)
-            self.cashflows_by_category().to_excel(writer, sheet_name='Category Cashflow', index=False)
-            self.account_sweep().to_excel(writer, sheet_name='Account Sweep', index=False)
-            self.inflow_sources().to_excel(writer, sheet_name='Inflow By Sender', index=False)
-            self.outflow_destinations().to_excel(writer, sheet_name='Outflow By Receiver', index=False)
-            self.average_monthly_balance().to_excel(writer, sheet_name='Account Balance', index=False)
+            self.cashflow_summary.to_excel(writer, sheet_name='Month-on-Month Cashflow', index=False)
+            self.cashflow_summary_wk.to_excel(writer, sheet_name='Week-on-Week Cashflow', index=False)
+            self.cashflows_by_category.to_excel(writer, sheet_name='Category Cashflow', index=False)
+            self.account_sweep.to_excel(writer, sheet_name='Account Sweep', index=False)
+            self.inflow_sources.to_excel(writer, sheet_name='Inflow By Sender', index=False)
+            self.outflow_destinations.to_excel(writer, sheet_name='Outflow By Receiver', index=False)
+            self.average_monthly_balance.to_excel(writer, sheet_name='Account Balance', index=False)
 
     def generate_excel_report(self):
         """Generate Excel file in memory and return buffer."""
@@ -288,17 +371,17 @@ class Analyzer:
         output = BytesIO()
 
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            self.risk_indicators().to_excel(writer, sheet_name='Statement Summary')
+            self.risk_indicators.to_excel(writer, sheet_name='Statement Summary')
             self.df.to_excel(writer, sheet_name='Transaction Data', index=False)
-            self.cashflow_summary().to_excel(writer, sheet_name='Month-on-Month Cashflow', index=False)
-            self.cashflow_summary_wk().to_excel(writer, sheet_name='Week-on-Week Cashflow', index=False)
-            self.cashflows_by_category().to_excel(writer, sheet_name='Category Cashflow', index=False)
-            self.account_sweep().to_excel(writer, sheet_name='Account Sweep', index=False)
-            self.inflow_sources().to_excel(writer, sheet_name='Inflow By Sender', index=False)
-            self.outflow_destinations().to_excel(writer, sheet_name='Outflow By Receiver', index=False)
-            self.average_monthly_balance().to_excel(writer, sheet_name='Account Balance', index=False)
+            self.cashflow_summary.to_excel(writer, sheet_name='Month-on-Month Cashflow', index=False)
+            self.cashflow_summary_wk.to_excel(writer, sheet_name='Week-on-Week Cashflow', index=False)
+            self.cashflows_by_category.to_excel(writer, sheet_name='Category Cashflow', index=False)
+            self.account_sweep.to_excel(writer, sheet_name='Account Sweep', index=False)
+            self.inflow_sources.to_excel(writer, sheet_name='Inflow By Sender', index=False)
+            self.outflow_destinations.to_excel(writer, sheet_name='Outflow By Receiver', index=False)
+            self.average_monthly_balance.to_excel(writer, sheet_name='Account Balance', index=False)
 
-        output.seek(0)  # 🔥 VERY IMPORTANT
+        output.seek(0)
         return output
 
 
@@ -308,7 +391,7 @@ class Analyzer:
         report = {
             "report_generated_at": self.now.strftime("%Y-%m-%d %H:%M:%S"),
             "summary": {
-                "total_transactions": int(len(self.df)),
+                "total_transactions": int(self.df.shape[0]),
                 "tenor": int(self.df["monthyear"].nunique()),
                 "start_date": str(self.df["date"].min().date()),
                 "end_date": str(self.df["date"].max().date()),
@@ -316,13 +399,13 @@ class Analyzer:
                 "total_outflow": int(abs(self.outflows["amount"].sum())),
                 "net_position": int(self.inflows["amount"].sum() - abs(self.outflows["amount"].sum())),
             },
-            "cashflow_summary": self.cashflow_summary(),
-            "cashflows_by_category": self.cashflows_by_category(),
-            "inflow_sources": self.inflow_sources(),
-            "outflow_destinations": self.outflow_destinations(),
-            "round_trip_transfers": self.account_sweep(),
-            "average_monthly_balance": self.average_monthly_balance(),
-            "risk_indicators": self.risk_indicators(),
+            "cashflow_summary": self.cashflow_summary,
+            "cashflows_by_category": self.cashflows_by_category,
+            "inflow_sources": self.inflow_sources,
+            "outflow_destinations": self.outflow_destinations,
+            "round_trip_transfers": self.account_sweep,
+            "average_monthly_balance": self.average_monthly_balance,
+            "risk_indicators": self.risk_indicators,
             "loan_transactions": {
                 "repayments": self.df[self.df["category"] == "loan_repayment"],
                 "disbursements": self.df[self.df["category"] == "loan"],
