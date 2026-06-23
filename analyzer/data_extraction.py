@@ -264,7 +264,7 @@ class BaseDataTransformer:
             # Category-specific rules
 
             if category == 'transfer':
-                mask & = (self.df['amount'] >= 100)
+                mask &= (self.df['amount'] >= 100)
                 
             if category == 'loan_repayment':
                 mask &= (self.df['type'] == 'debit') & (self.df['amount'] > 100)
