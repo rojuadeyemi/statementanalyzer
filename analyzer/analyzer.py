@@ -268,7 +268,7 @@ class Analyzer:
                             "Zeroing Rate": f"{self.zeroing_rate:.1%}",
                             "Balance Floor": int(bal_floor),
                             "Betting Ratio": round(betting_ratio,2),
-                          "Cashflow Volatility": round(volatility,2)
+                          "Cashflow Volatility": round(np.nan_to_num(volatility),2)
 
                         }, name="value")
 
