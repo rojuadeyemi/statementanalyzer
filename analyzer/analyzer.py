@@ -264,7 +264,7 @@ class Analyzer:
                             "VAS Amount": abs(self.df[self.df["category"] == "VAS"]["amount"].sum()),
                             "Flight Risk": f"{flight_risk:.1%}",
                           "Concentration Risk": f"{np.nan_to_num(largest_share):.1%}",
-                            "DTIR":self.dtir f"{self.dtir:.1%}",
+                            "DTIR":f"{self.dtir:.1%}",
                             "Zeroing Rate": f"{self.zeroing_rate:.1%}",
                             "Balance Floor": int(bal_floor),
                             "Betting Ratio": round(betting_ratio,2),
