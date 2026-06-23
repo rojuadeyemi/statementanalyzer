@@ -85,6 +85,7 @@ def run_analysis(job_id, filepath, filename):
     except Exception as e:
         jobs[job_id]["status"] = "Error"
         jobs[job_id]["result"] = str(e)
+        return
 
 # Home page
 @app.route('/')
