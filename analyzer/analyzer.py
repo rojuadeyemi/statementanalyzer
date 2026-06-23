@@ -41,13 +41,20 @@ class Analyzer:
         if self.account_name:
             self.account_name = self.account_name.upper()
         
+        self.opening_balance = None
+        self.closing_balance = None
         if 'balance' in self.df.columns:
             first = self.df.iloc[0]
 
             if first["type"] == "credit":
                 self.opening_balance = first["balance"] - first["amount"]
+
             else:
                 self.opening_balance = first["balance"] + first["amount"]
+
+            self.closing_balance = self.df['balance'].iloc[-1]
+        
+        self.last_month_inflow = self.cashflow_summary['sum_credit'].iloc[-1]
                 
     # Cashflow Analysis
     @cached_property
