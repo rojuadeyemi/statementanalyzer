@@ -32,12 +32,13 @@ class Analyzer:
         self.transfer_only_outflow = self.outflows[self.outflows['category']=='transfer']
 
         self.last_month_inflow = self.cashflow_summary['sum_credit'].iloc[-1]
-        self.loan_repayments = self.data.get('loan_repayment',pd.Series())
 
         self.data = (self.non_others_df.groupby(["monthyear","category"])["amount"]
                      .sum()
                      .unstack(fill_value=0)
         )
+
+        self.loan_repayments = self.data.get('loan_repayment',pd.Series())
 
         if self.account_name:
             self.account_name = self.account_name.upper()
