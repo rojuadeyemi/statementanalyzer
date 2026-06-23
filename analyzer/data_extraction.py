@@ -414,10 +414,7 @@ class DataExtractor(BaseDataTransformer):
 
             df = df.sort_values('date')
 
-            # Include only needed fields
-            include_cols = ['date', 'balance', 'amount', 'type', 'monthyear', 'weekno', 'category']
-
-            return self.df[include_cols].drop_duplicates(), self.account_name, self.account_number
+            return self.df.drop_duplicates(), self.account_name, self.account_number
 
         except Exception as e:
             print(f"Error processing data: {e}")
