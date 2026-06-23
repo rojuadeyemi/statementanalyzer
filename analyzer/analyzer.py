@@ -215,7 +215,7 @@ class Analyzer:
         loan_disbursements = self.data.get('loan',pd.Series())
         average_inflow = self.transfer_only_inflow['amount'].mean()
 
-        flight_risk = "Exist" if (self.df["category"] == "travelling").sum() > 0 else "Not exist"
+        flight_risk = 1 if (self.df["category"] == "travelling").sum() > 0 else 0
         
         bal_floor = None
         if 'balance' in self.df.columns:
@@ -262,13 +262,13 @@ class Analyzer:
                             "Loan Disbursement Amount": int(abs(loan_disbursements.sum())),
                             "Loan Disbursement Count": len(loan_disbursements),
                             "VAS Amount": abs(self.df[self.df["category"] == "VAS"]["amount"].sum()),
-                            "Flight Risk": flight_risk,
-                          "Concentration Risk": round(np.nan_to_num(largest_share),2),
-                            "DTIR":self.dtir,
-                            "Zeroing Rate": self.zeroing_rate,
-                            "Balance Floor": bal_floor,
+                            "Flight Risk": f"{flight_risk:.1%}",
+                          "Concentration Risk": f"{np.nan_to_num(largest_share):.1%}",
+                            "DTIR":self.dtir f"{self.dtir:.1%}",
+                            "Zeroing Rate": f"{self.zeroing_rate:.1%}",
+                            "Balance Floor": int(bal_floor),
                             "Betting Ratio": round(betting_ratio,2),
-                          "Cashflow Volatility": volatility
+                          "Cashflow Volatility": round(volatility,2)
 
                         }, name="value")
 
