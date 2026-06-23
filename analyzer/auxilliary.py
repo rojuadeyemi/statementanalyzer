@@ -69,7 +69,8 @@ def transaction_data(df):
     new_df['type'] = type_
     
     new_df = new_df.dropna(subset=['date']).copy()  # Ensure date is not NaN
-    
+
+    del df
     return new_df
 
 def clean_and_parse_dates(series:pd.Series) -> pd.Series:
