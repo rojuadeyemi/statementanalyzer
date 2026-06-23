@@ -29,8 +29,6 @@ class Analyzer:
         self.transfer_only_inflow = self.inflows[self.inflows['category']=='transfer']
         self.transfer_only_outflow = self.outflows[self.outflows['category']=='transfer']
 
-        self.last_month_inflow = self.cashflow_summary['sum_credit'].iloc[-1]
-
         self.data = (self.non_others_df.groupby(["monthyear","category"])["amount"]
                      .sum()
                      .unstack(fill_value=0)
