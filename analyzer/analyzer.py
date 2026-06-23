@@ -15,11 +15,9 @@ class Analyzer:
         self.file_name = os.path.basename(file_path).split(".")[0]
         self.now = datetime.now()
         self.timestamp = self.now.strftime("%Y%m%d%H%M%S")
-        self.opening_balance = None
-        self.closing_balance = None
 
         # Ensure key columns exist
-        expected_cols = {'date', 'balance', 'amount', 'type', 'monthyear', 'weekno', 'category'}
+        expected_cols = {'date', 'amount', 'type', 'monthyear', 'weekno', 'category'}
         missing = expected_cols - set(self.df.columns)
         if missing:
             raise ValueError(f"Missing expected columns: {missing}")
@@ -257,8 +255,8 @@ class Analyzer:
                             "Total Outflow": int(abs(outflow.sum())),
                             "Average Inflow": int(np.nan_to_num(average_inflow)),
                             "Saving Rate": round(1 - abs(outflow.sum())/inflow.sum(), 2) if inflow.sum() > 0 else 0,
-                            "Opening Balance":round(self.opening_balance,2),
-                            "Closing Balance":round(self.closing_balance,2),
+                            "Opening Balance":self.opening_balance,
+                            "Closing Balance":self.closing_balance,
                             "Inflow-Outflow Ratio": round(inflow.sum() / abs(outflow.sum()), 2) if abs(outflow.sum()) > 0 else None,
                             "Debit-Credit Frequency Ratio": round(self.outflows.shape[0] / self.inflows.shape[0], 2) if self.inflows.shape[0] > 0 else None,
                             "Loan Repayment Amount": int(self.loan_repayments.sum()),
