@@ -261,6 +261,9 @@ class BaseDataTransformer:
                     self.EXCLUSIONS, regex=True, na=False,case=False
                 )
 
+            if category == 'transfer':
+                mask & = (self.df['amount'] >= 100)
+                
             # Category-specific rules
             if category == 'loan_repayment':
                 mask &= (self.df['type'] == 'debit') & (self.df['amount'] > 100)
