@@ -32,6 +32,7 @@ class Analyzer:
         self.transfer_only_outflow = self.outflows[self.outflows['category']=='transfer']
 
         self.last_month_inflow = self.cashflow_summary['sum_credit'].iloc[-1]
+        self.loan_repayments = self.data.get('loan_repayment',pd.Series())
 
         self.data = (self.non_others_df.groupby(["monthyear","category"])["amount"]
                      .sum()
@@ -131,11 +132,9 @@ class Analyzer:
     @property
     def dtir(self):
 
-        repayment_data = self.data.get('loan_repayment')
-
         latest_repayment = (
-            repayment_data.iloc[-1]
-            if repayment_data is not None and not repayment_data.empty
+            self.loan_repayments.iloc[-1]
+            if self.loan_repayments is not None and not self.loan_repayments.empty
             else 0
         )
 
@@ -219,8 +218,7 @@ class Analyzer:
         """Compute behavioral red flags and liquidity patterns."""
         inflow = self.inflows["amount"]
         outflow = self.outflows["amount"]
-        loan_repayments = self.data.get('loan_repayment')
-        loan_disbursements = self.data.get('loan')
+        loan_disbursements = self.data.get('loan',pd.Series())
         average_inflow = self.transfer_only_inflow['amount'].mean()
 
         flight_risk = "Exist" if (self.df["category"] == "travelling").sum() > 0 else "Not exist"
@@ -238,9 +236,9 @@ class Analyzer:
             
         betting_ratio = betting_amount/self.last_month_inflow if self.last_month_inflow > 0 else 0
 
-        monthly_net_cashflow = inflow - abs(outflow)
+        net = self.cashflow_summary['net_cashflow']
 
-        volatility = monthly_net_cashflow.std()/monthly_net_cashflow.mean()
+        volatility = net.std()/np.abs(net.mean())
 
         sender_share = (
         self.inflow_sources["total_inflow"]
@@ -260,18 +258,18 @@ class Analyzer:
                             "Total Inflow": int(inflow.sum()),
                             "Total Outflow": int(abs(outflow.sum())),
                             "Average Inflow": int(np.nan_to_num(average_inflow)),
-                            "Saving Rate": int(inflow.sum() - abs(outflow.sum()))/int(inflow.sum()) if inflow.sum() > 0 else 0,
+                            "Saving Rate": round((inflow.sum() - abs(outflow.sum()))/inflow.sum(), 2) if inflow.sum() > 0 else 0,
                             "Opening Balance":round(self.opening_balance,2),
                             "Closing Balance":round(self.closing_balance,2),
                             "Inflow-Outflow Ratio": round(inflow.sum() / abs(outflow.sum()), 2) if abs(outflow.sum()) > 0 else None,
                             "Debit-Credit Frequency Ratio": round(self.outflows.shape[0] / self.inflows.shape[0], 2) if self.inflows.shape[0] > 0 else None,
-                            "Loan Repayment Amount": int(loan_repayments.sum()),
-                            "Loan Repayment Count": len(loan_repayments),
+                            "Loan Repayment Amount": int(self.loan_repayments.sum()),
+                            "Loan Repayment Count": len(self.loan_repayments),
                             "Loan Disbursement Amount": int(abs(loan_disbursements.sum())),
                             "Loan Disbursement Count": len(loan_disbursements),
                             "VAS Amount": abs(self.df[self.df["category"] == "VAS"]["amount"].sum()),
                             "Flight Risk": flight_risk,
-                          "Concentration Risk": round(largest_share,2),
+                          "Concentration Risk": round(np.nan_to_num(largest_share),2),
                             "DTIR":self.dtir,
                             "Zeroing Rate": self.zeroing_rate,
                             "Balance Floor": bal_floor,
@@ -348,12 +346,12 @@ class Analyzer:
         print("\n" + "=" * 60)
         print("LOAN REPAYMENT TRANSACTIONS")
         print("=" * 60)
-        print(self.df[self.df["category"] == "loan_repayment"])
+        print(self.df[self.df["category"].eq("loan_repayment"]))
 
         print("\n" + "=" * 60)
         print("LOAN DISBURSEMENT TRANSACTIONS")
         print("=" * 60)
-        print(self.df[self.df["category"] == "loan"])
+        print(self.df[self.df["category"].eq("loan"))
 
     # ----------------------------------------------------------------------
     # REPORT BUILDER
