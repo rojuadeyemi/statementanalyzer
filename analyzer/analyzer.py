@@ -234,10 +234,7 @@ class Analyzer:
 
         volatility = net.std()/np.abs(net.mean())
 
-        sender_share = (
-        self.inflow_sources["total_inflow"]
-        / inflow = inflow.sum()
-    )
+        sender_share = (self.inflow_sources["total_inflow"] / inflow.sum())
     
         largest_share = sender_share.max()
         
