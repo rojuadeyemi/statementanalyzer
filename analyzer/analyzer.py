@@ -347,12 +347,12 @@ class Analyzer:
         print("\n" + "=" * 60)
         print("LOAN REPAYMENT TRANSACTIONS")
         print("=" * 60)
-        print(self.df[self.df["category"].eq("loan_repayment"]))
+        print(self.df[self.df["category"].eq("loan_repayment")])
 
         print("\n" + "=" * 60)
         print("LOAN DISBURSEMENT TRANSACTIONS")
         print("=" * 60)
-        print(self.df[self.df["category"].eq("loan"))
+        print(self.df[self.df["category"].eq("loan")])
 
     # ----------------------------------------------------------------------
     # REPORT BUILDER
