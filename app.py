@@ -73,7 +73,7 @@ def run_analysis(job_id, filepath, filename):
 
         jobs[job_id]["status"] = "Analyzing transactions..."
 
-        statement_summary = statement.risk_indicators().to_dict()
+        statement_summary = statement.risk_indicators.to_dict()
         jobs[job_id]["report_file"] = statement.generate_excel_report()
         jobs[job_id]["report_file_json"] = statement.generate_json_report()
         
