@@ -62,13 +62,10 @@ class Analyzer:
     @cached_property
     def cashflow_summary(self) -> pd.DataFrame:
         """Summarize inflow and outflow trends by month."""
-        summary =
-            (
-            self.non_others_df
-    .groupby(["monthyear","type"])["amount"]
-    .agg(["sum","count"])
-    .unstack(fill_value=0)
-            .sort_index(ascending=False)
+        summary = (self.non_others_df.groupby(["monthyear","type"])["amount"]
+                  .agg(["sum","count"])
+                  .unstack(fill_value=0)
+                  .sort_index(ascending=False)
             )
         
         summary.columns = [f"{a}_{b}" for a, b in summary.columns]
