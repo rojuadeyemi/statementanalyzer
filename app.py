@@ -3,6 +3,7 @@ import os
 import threading
 import uuid
 from analyzer.analyzer import Analyzer
+from datetime import datetime
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -25,7 +26,6 @@ def download(job_id):
 
     output = job["report_file"]
 
-    from datetime import datetime
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
 
     filename = job.get("filename", "report.xlsx")
