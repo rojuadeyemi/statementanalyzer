@@ -236,7 +236,7 @@ class Analyzer:
 
         sender_share = (
         self.inflow_sources["total_inflow"]
-        / self.inflow_sources["total_inflow"].sum()
+        / inflow = inflow.sum()
     )
     
         largest_share = sender_share.max()
