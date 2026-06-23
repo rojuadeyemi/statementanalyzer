@@ -38,6 +38,28 @@ def download(job_id):
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
+@app.route("/download_json/<job_id>")
+def download_json(job_id):
+    job = jobs.get(job_id)
+
+    if not job or job["status"] != "Completed":
+        return abort(404)
+
+    output = job["report_file_json"]
+
+    from datetime import datetime
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+
+    filename = job.get("filename", "report.xlsx")
+    download_name = f"{os.path.splitext(filename)[0]}_{timestamp}.json"
+
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name=download_name,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    
 # Job storage
 jobs = {}
 
@@ -52,7 +74,8 @@ def run_analysis(job_id, filepath, filename):
         jobs[job_id]["status"] = "Analyzing transactions..."
 
         statement_summary = statement.risk_indicators().to_dict()
-        jobs[job_id]["report_file"] = statement.generate_excel_report()  # store result once
+        jobs[job_id]["report_file"] = statement.generate_excel_report()
+        jobs[job_id]["report_file_json"] = statement.generate_json_report()
         
         jobs[job_id]["status"] = "Completed"
         jobs[job_id]["summary"] = statement_summary
