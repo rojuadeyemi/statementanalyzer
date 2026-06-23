@@ -9,11 +9,13 @@ def extract_transaction_fidelity(pdf):
         if not text:
             continue
         lines = text.split('\n')
+
         for line in lines:
             # Match lines with transaction-like format: date ref details amount balance
             match = re.match(r"^(\d{2}-[A-Za-z]{3}-\d{2})\s+(\d{2}-[A-Za-z]{3}-\d{2})\s+(\S+)\s+(.*?)\s+([\d,]+\.\d{1,2})\s+([\d,]+\.\d{1,2})$", line)
             if not match:
                 continue
+
             trans_date = match.group(1)
             value_date = match.group(2)
             channel = match.group(3)
@@ -24,8 +26,6 @@ def extract_transaction_fidelity(pdf):
 
     # Create DataFrame
     df = pd.DataFrame(transactions, columns=["DATE POSTED"," VALUE DATE","CHANNEL","Narration", "Amount", "Balance"])
-       # Build dataframe
-    df = pd.DataFrame(transactions, columns=header)
 
     # Convert numeric
     df["Amount"] = pd.to_numeric(df["Amount"], errors="coerce")
