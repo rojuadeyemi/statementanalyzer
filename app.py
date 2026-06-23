@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template, redirect, url_for, jsonify,abort,send_file
+from flask import Flask, request, render_template, redirect, url_for, jsonify,abort,send_file,Response
 import os
 import threading
 import uuid
@@ -43,23 +43,23 @@ def download_json(job_id):
     job = jobs.get(job_id)
 
     if not job or job["status"] != "Completed":
-        return abort(404)
+        abort(404)
 
-    output = job["report_file_json"]
-
-    from datetime import datetime
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
 
-    filename = job.get("filename", "report.xlsx")
-    download_name = f"{os.path.splitext(filename)[0]}_{timestamp}.json"
-
-    return send_file(
-        output,
-        as_attachment=True,
-        download_name=download_name,
-        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    filename = job.get("filename", "report")
+    download_name = (
+        f"{os.path.splitext(filename)[0]}_{timestamp}.json"
     )
-    
+
+    return Response(
+        job["report_file_json"],
+        mimetype="application/json",
+        headers={
+            "Content-Disposition":
+                f'attachment; filename="{download_name}"'
+        },
+    )    
 # Job storage
 jobs = {}
 
