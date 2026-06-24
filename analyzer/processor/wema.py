@@ -1,11 +1,11 @@
 import pandas as pd
 import re
 
-def extract_transaction_wema(pdf):
+def extract_transaction_wema(page_text):
     transactions = []
     header=[ "Value Date", "Reference", "Details", "Amount", "Balance"]
-    for page in pdf.pages:
-        text = page.extract_text()
+    for text in page_text:
+
         if not text:
             continue
         lines = text.split('\n')
