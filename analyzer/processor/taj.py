@@ -1,7 +1,7 @@
 import pandas as pd
 import re
 
-def extract_transaction_taj(pdf):
+def extract_transaction_taj(page_text):
     transactions = []
     header=['Trans Date',
    'Value date',
@@ -9,9 +9,7 @@ def extract_transaction_taj(pdf):
    'Narration',
    'Amount',
    'Balance']
-    for page in pdf.pages:
-        
-        text = page.extract_text()
+    for text in page_text:
         
         if not text:
             continue
