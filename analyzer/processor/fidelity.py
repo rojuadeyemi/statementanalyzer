@@ -1,11 +1,10 @@
 import pandas as pd
 import re
 
-def extract_transaction_fidelity(pdf):
+def extract_transaction_fidelity(page_text):
 
     transactions = []
-    for page in pdf.pages:
-        text = page.extract_text()
+    for text in page_text:
         if not text:
             continue
         lines = text.split('\n')
