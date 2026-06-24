@@ -148,7 +148,11 @@ def extract_tables_from_pdf(file_path):
                 print(f"Processor {Processor.__name__} failed: {e}")
                 
         if df is None:
-            df = extract_transaction_generic(pdf,keywords=['balance'])
+            try:
+                df = extract_transaction_generic(pdf,keywords=['balance'])
+            except Exception as e:
+                logger.exception(f"Table extraction also failed {e}")
+                print(f"Table extraction also failed {e}")
 
         # --- If processor succeeded
         if df is not None and not df.empty:
