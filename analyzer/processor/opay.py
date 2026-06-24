@@ -210,7 +210,6 @@ def extract_transaction_opay(page_text):
     
     # ---------------- PAGE LOOP ----------------
     for text in page_text:
-        text = page.extract_text()
         if not text:
             continue
 
