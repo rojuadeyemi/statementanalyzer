@@ -118,6 +118,11 @@ def extract_tables_from_pdf(file_path):
             first_text = pdf.pages[0].extract_text() or ""
             last_text = pdf.pages[-1].extract_text() or ""
 
+            pages_text = [
+                            page.extract_text() or ""
+                            for page in pdf.pages
+                        ]
+
             # Extract metadata
             name, number = extract_name_and_number(first_text)
 
@@ -127,7 +132,7 @@ def extract_tables_from_pdf(file_path):
             # --- Try processors
             for Processor in ProcessorRegistry.get_processors():
                 try:
-                    proc = Processor(pdf)
+                    proc = Processor(pages_text)
 
                     if proc.detect(first_text, last_text):
                         selected_processor = proc
@@ -135,7 +140,8 @@ def extract_tables_from_pdf(file_path):
                         print(f" Processor in Use: {proc.name}")
 
                         df = proc.extract()
-                        print("it worked")
+                    else:
+                        pass
 
                         if df is not None and not df.empty:
                             break
