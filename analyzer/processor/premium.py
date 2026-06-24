@@ -16,14 +16,13 @@ PATTERN_SPLIT = re.compile(
     r'([\d,]+\.\d{2})$'
 )
 
-def extract_transaction_premium(pdf):
+def extract_transaction_premium(page_text):
 
     transactions = []
     header = ['Trans Date','Narration','Value date','Amount','Balance']
 
-    for page in pdf.pages:
+    for text in page_text:
 
-        text = page.extract_text()
         if not text:
             continue
 
