@@ -1,11 +1,11 @@
 import pandas as pd
 import re
 
-def extract_transaction_palmpay(pdf):
+def extract_transaction_palmpay(page_text):
     transactions = []
     pattern = r"(\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2})\s+(.+?)\s+([A-Z0-9a-z]+)\s+([\+\-\d,.]+)\s+([\+\-\d,.]+)"
-    for page in pdf.pages:
-        text = page.extract_text()
+    for text in page_text:
+
         if not text:
             continue
         lines = text.split('\n')
