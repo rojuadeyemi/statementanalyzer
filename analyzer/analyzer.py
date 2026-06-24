@@ -45,10 +45,10 @@ class Analyzer:
             first = self.df.iloc[0]
 
             if first["type"] == "credit":
-                self.opening_balance = first["balance"] - first["amount"]
+                self.opening_balance = round(first["balance"] - first["amount"], 2)
 
             else:
-                self.opening_balance = first["balance"] + first["amount"]
+                self.opening_balance = round(first["balance"] + first["amount"],2)
 
             self.closing_balance = self.df['balance'].iloc[-1]
         
