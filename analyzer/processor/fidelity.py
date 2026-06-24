@@ -3,6 +3,8 @@ import re
 
 def extract_transaction_fidelity(page_text):
 
+    pattern = r"^(\d{2}-[A-Za-z]{3}-\d{2})\s+(\d{2}-[A-Za-z]{3}-\d{2})\s+(\S+)\s+(.*?)\s+([\d,]+\.\d{1,2})\s+([\d,]+\.\d{1,2})$"
+
     transactions = []
     for text in page_text:
         if not text:
@@ -11,7 +13,7 @@ def extract_transaction_fidelity(page_text):
 
         for line in lines:
             # Match lines with transaction-like format: date ref details amount balance
-            match = re.match(r"^(\d{2}-[A-Za-z]{3}-\d{2})\s+(\d{2}-[A-Za-z]{3}-\d{2})\s+(\S+)\s+(.*?)\s+([\d,]+\.\d{1,2})\s+([\d,]+\.\d{1,2})$", line)
+            match = re.match(pattern, line)
             if not match:
                 continue
 
