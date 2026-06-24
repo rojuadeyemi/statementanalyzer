@@ -4,7 +4,6 @@ from analyzer.processors import *
 ProcessorRegistry.register(MoniepointProcessor)
 ProcessorRegistry.register(PtrustProcessor)
 ProcessorRegistry.register(SterlingProcessor)
-ProcessorRegistry.register(MoniepointProcessor_v2)
 ProcessorRegistry.register(TAJProcessor)
 ProcessorRegistry.register(PalmPayProcessor)
 ProcessorRegistry.register(ZenithProcessor)
