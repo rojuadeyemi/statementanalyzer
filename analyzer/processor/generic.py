@@ -39,7 +39,7 @@ def extract_transaction_moniepoint(pdf):
 def extract_transaction_generic(pdf, keywords):
 
     trutsy = bool(
-            re.search(r'([A-Z][a-z]+\s*\d{2}\s*[A-Z][a-z]+\s*Page)', pdf.pages[0].exract_text())
+            re.search(r'([A-Z][a-z]+\s*\d{2}\s*[A-Z][a-z]+\s*Page)', pdf.pages[0].extract_text())
         )
 
     if trutsy:
