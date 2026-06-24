@@ -134,9 +134,9 @@ def extract_tables_from_pdf(file_path):
                 proc = Processor(pages_text)
 
                 if proc.detect():
-                    selected_processor = proc
-                    logger.info(f"Processor in Use: {proc.name}")
-                    print(f" Processor in Use: {proc.name}")
+                    selected_processor = proc.name
+                    logger.info(f"Processor in Use: {selected_processor}")
+                    print(f" Processor in Use: {selected_processor}")
 
                     df = proc.extract()
 
@@ -150,6 +150,7 @@ def extract_tables_from_pdf(file_path):
         if df is None:
             try:
                 df = extract_transaction_generic(pdf,keywords=['balance'])
+                selected_processor = "Generic"
             except Exception as e:
                 logger.exception(f"Table extraction also failed {e}")
                 print(f"Table extraction also failed {e}")
@@ -159,7 +160,7 @@ def extract_tables_from_pdf(file_path):
             
             save_meta(
                 file_name=file_path,
-                processor=selected_processor.name,
+                processor=selected_processor,
                 pages_processed=len(pdf.pages),
                 time_taken=time.time() - start_time,
             )
