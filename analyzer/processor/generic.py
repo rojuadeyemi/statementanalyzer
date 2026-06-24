@@ -37,7 +37,14 @@ def extract_transaction_moniepoint(pdf):
     return df
 
 def extract_transaction_generic(pdf, keywords):
-    
+
+    trutsy = bool(
+            re.search(r'([A-Z][a-z]+\s*\d{2}\s*[A-Z][a-z]+\s*Page)', pdf.pages[0].exract_text())
+        )
+
+    if trutsy:
+        return extract_transaction_moniepoint(pdf)
+        
     dataframes = []
     header = None  # Placeholder for the table header
     table_settings = {"intersection_tolerance": 10}
