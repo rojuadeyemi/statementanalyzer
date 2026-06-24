@@ -133,7 +133,7 @@ def extract_tables_from_pdf(file_path):
             try:
                 proc = Processor(pages_text)
 
-                if proc.detect(first_text, last_text):
+                if proc.detect():
                     selected_processor = proc
                     logger.info(f"Processor in Use: {proc.name}")
                     print(f" Processor in Use: {proc.name}")
