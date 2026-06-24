@@ -9,7 +9,6 @@ from analyzer.processor.zenith import extract_transaction_zenith
 from analyzer.processor.fidelity import extract_transaction_fidelity
 from analyzer.processor.premium import extract_transaction_premium
 from analyzer.processor.sterling import extract_transaction_sterling
-from analyzer.processor.generic import extract_transaction_generic
 from analyzer.processor.base import BaseProcessor
 
 
@@ -128,12 +127,3 @@ class MultipleProcessor(BaseProcessor):
 
     def extract(self):
         return extract_transaction_wema(self.pdf)
-
-class GenericProcessor(BaseProcessor):
-    name = "MultiPurpose"
-
-    def detect(self, first_text, last_text):
-        return True
-
-    def extract(self):
-        return extract_transaction_generic(self.pdf,keywords=['balance'])
