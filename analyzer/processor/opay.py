@@ -1,7 +1,7 @@
 import pandas as pd
 import re
 
-def extract_transaction_opay_new(pdf):
+def extract_transaction_opay_new(page_text):
     transactions = []
     
     # Build main regex
@@ -35,8 +35,7 @@ def extract_transaction_opay_new(pdf):
 
     date = None
     # ---------------- PAGE LOOP ----------------
-    for page in pdf.pages:
-        text = page.extract_text()
+    for text in page_text:
         if not text:
             continue
 
@@ -140,14 +139,13 @@ def extract_transaction_opay_new(pdf):
 
     return pd.DataFrame(transactions, columns=["Value Date", "Narration", "Amount","Balance"])
 
-def extract_transaction_opay_2026(pdf):
+def extract_transaction_opay_2026(page_text):
 
     transactions = []
     pattern =r"([A-Za-z]{3}\s+\d{2},\d{4}\s+\d{2}:\d{2}:\d{2})\s+(.+?)\s+(-?[\d,]+(?:\.\d+)?)\s+([\d,]+(?:\.\d+)?)\s+(-?[\d,]+(?:\.\d+)?)\s*(?:\s+₦\s*([\d,]+(?:\.\d+)?))?"
 
-    for page in pdf.pages:
+    for text in page_text:
     
-        text = page.extract_text()
         if not text:
             continue
         lines = text.split('\n')
@@ -175,14 +173,14 @@ def extract_transaction_opay_2026(pdf):
 
     return df
     
-def extract_transaction_opay(pdf):
+def extract_transaction_opay(page_text):
     transactions = []
 
     # check if it is a special Opay statement
-    if "Reversal Transaction Settlement" in pdf.pages[0].extract_text():
-        return extract_transaction_opay_new(pdf)
-    if "Pos-service@opay" in pdf.pages[-1].extract_text():
-        return extract_transaction_opay_2026(pdf)
+    if "Reversal Transaction Settlement" in page_text[0]:
+        return extract_transaction_opay_new(page_text)
+    if "Pos-service@opay" in page_text[-1]:
+        return extract_transaction_opay_2026(page_text)
     
     # Build main regex
     prefix_re = r'^.*?'
@@ -211,7 +209,7 @@ def extract_transaction_opay(pdf):
     pending = None
     
     # ---------------- PAGE LOOP ----------------
-    for page in pdf.pages:
+    for text in page_text:
         text = page.extract_text()
         if not text:
             continue
