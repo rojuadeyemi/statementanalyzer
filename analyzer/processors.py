@@ -15,52 +15,52 @@ from analyzer.processor.base import BaseProcessor
 class PtrustProcessor(BaseProcessor):
     name = "Premium Trust"
 
-    def detect(self, first_text, last_text):
-        return bool(re.search(r"contactpremium@premiumtrustbank.com", last_text))
+    def detect(self):
+        return bool(re.search(r"contactpremium@premiumtrustbank.com", self.page_text[-1]))
 
     def extract(self):
-        return extract_transaction_premium(self.pdf)
+        return extract_transaction_premium(self.page_text)
     
 class SterlingProcessor(BaseProcessor):
     name = "Sterling"
 
-    def detect(self, first_text, last_text):
-        return bool(re.search(r"www.sterling.ng", first_text))
+    def detect(self):
+        return bool(re.search(r"www.sterling.ng", self.page_text[0]))
 
     def extract(self):
-        return extract_transaction_sterling(self.pdf)
+        return extract_transaction_sterling(self.page_text)
 
 class TAJProcessor(BaseProcessor):
     name = "TAJ"
 
-    def detect(self, first_text, last_text):
-        return bool(re.search(r"tajconnect@tajbank.com", first_text))
+    def detect(self):
+        return bool(re.search(r"tajconnect@tajbank.com", self.page_text[0]))
 
     def extract(self):
-        return extract_transaction_taj(self.pdf)
+        return extract_transaction_taj(self.page_text)
         
 class MoniepointProcessor(BaseProcessor):
     name = "Moniepoint"
 
-    def detect(self, first_text, last_text):
+    def detect(self):
         return bool(
-            re.search(r"Business Name", first_text)
-            and re.search(r"Currency NGN", first_text)
+            re.search(r"Business Name", self.page_text[0])
+            and re.search(r"Currency NGN", self.page_text[0])
         )
 
     def extract(self):
-        return extract_transaction_monie_correct(self.pdf)
+        return extract_transaction_monie_correct(self.page_text)
     
 class MoniepointProcessor_v2(BaseProcessor):
     name = "Moniepoint_v2"
 
-    def detect(self, first_text, last_text):
+    def detect(self):
         return bool(
-            re.search(r'([A-Z][a-z]+\s*\d{2}\s*[A-Z][a-z]+\s*Page)', first_text)
+            re.search(r'([A-Z][a-z]+\s*\d{2}\s*[A-Z][a-z]+\s*Page)', self.page_text[0])
         )
 
     def extract(self):
-        return extract_transaction_moniepoint(self.pdf)
+        return extract_transaction_moniepoint(self.page_text)
 '''
 class KudaProcessor(BaseProcessor):
     name = "Kuda"
@@ -76,54 +76,54 @@ class KudaProcessor(BaseProcessor):
 class PalmPayProcessor(BaseProcessor):
     name = "PalmPay"
 
-    def detect(self, first_text, last_text):
+    def detect(self):
         return bool(
-                re.search(r"PalmPay Business Statement", first_text)
+                re.search(r"PalmPay Business Statement", self.page_text[0])
         )
 
     def extract(self):
-        return extract_transaction_palmpay(self.pdf)
+        return extract_transaction_palmpay(self.page_text)
         
 class ZenithProcessor(BaseProcessor):
     name = "Zenith"
 
-    def detect(self, first_text, last_text):
+    def detect(self):
         return bool(
-                re.search(r"Account Number: CA", first_text)
+                re.search(r"Account Number: CA", self.page_text[0])
         )
 
     def extract(self):
-        return extract_transaction_zenith(self.pdf)
+        return extract_transaction_zenith(self.page_text)
 
 class FidelityProcessor(BaseProcessor):
     name = "Fidelity"
 
-    def detect(self, first_text, last_text):
+    def detect(self):
         return bool(
-                re.search(r"fidelitybank.ng", first_text)
+                re.search(r"fidelitybank.ng", self.page_text[0])
         )
 
     def extract(self):
-        return extract_transaction_fidelity(self.pdf)
+        return extract_transaction_fidelity(self.page_text)
 
 class OpayProcessor(BaseProcessor):
     """Processor for Opay statements."""
     name = "Opay"
 
-    def detect(self, first_text, last_text):
-        return bool(re.search(r"Note: Current Balance includes OWealth Balance|Reversal Transaction Settlement", first_text, re.IGNORECASE) or re.search(r"Pos-service@opay", last_text, re.IGNORECASE)
+    def detect(self):
+        return bool(re.search(r"Note: Current Balance includes OWealth Balance|Reversal Transaction Settlement", self.page_text[0], re.IGNORECASE) or re.search(r"Pos-service@opay", self.page_text[-1], re.IGNORECASE)
                    )
 
     def extract(self):
-        return extract_transaction_opay(self.pdf)
+        return extract_transaction_opay(self.page_text)
 
 class MultipleProcessor(BaseProcessor):
     name = "Wema Corporate_Stanbic IBTC_FCMB Business"
 
-    def detect(self, first_text, last_text):
+    def detect(self):
         return bool(
-                re.search(r"alat.ng|www.stanbicibtcbank.com|the following pie chart represents the various", last_text)
+                re.search(r"alat.ng|www.stanbicibtcbank.com|the following pie chart represents the various", self.page_text[0])
         )
 
     def extract(self):
-        return extract_transaction_wema(self.pdf)
+        return extract_transaction_wema(self.page_text)
