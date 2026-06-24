@@ -1,5 +1,6 @@
 import pdfplumber
 from analyzer.registry import ProcessorRegistry
+from analyzer.processor.generic import extract_transaction_generic
 import pandas as pd
 from datetime import datetime
 import json, time, os
@@ -113,72 +114,67 @@ def save_meta(file_name: str, processor: str, pages_processed: int, time_taken: 
 def extract_tables_from_pdf(file_path):
     start_time = time.time()
 
-    try:
-        with pdfplumber.open(file_path) as pdf:
-            first_text = pdf.pages[0].extract_text() or ""
-            last_text = pdf.pages[-1].extract_text() or ""
+    with pdfplumber.open(file_path) as pdf:
+        pages_text = [
+                        page.extract_text() or ""
+                        for page in pdf.pages
+                    ]
+        first_text = pages_text[0]
+        last_text = pages_text[-1]
 
-            pages_text = [
-                            page.extract_text() or ""
-                            for page in pdf.pages
-                        ]
+        # Extract metadata
+        name, number = extract_name_and_number(first_text)
 
-            # Extract metadata
-            name, number = extract_name_and_number(first_text)
+        selected_processor = None
+        df = None
 
-            selected_processor = None
-            df = None
-
-            # --- Try processors
-            for Processor in ProcessorRegistry.get_processors():
-                try:
-                    proc = Processor(pages_text)
-
-                    if proc.detect(first_text, last_text):
-                        selected_processor = proc
-                        logger.info(f"Processor in Use: {proc.name}")
-                        print(f" Processor in Use: {proc.name}")
-
-                        df = proc.extract()
-                    else:
-                        pass
-
-                        if df is not None and not df.empty:
-                            break
-
-                except Exception as e:
-                    logger.exception(f"Processor {Processor.__name__} failed")
-                    print(f"Processor {Processor.__name__} failed")
-
-            # --- If processor succeeded
-            if df is not None and not df.empty:
-                
-                save_meta(
-                    file_name=file_path,
-                    processor=selected_processor.name,
-                    pages_processed=len(pdf.pages),
-                    time_taken=time.time() - start_time,
-                )
-                
-                return df, name, number
-
-            # --- Fallback: log unknown layout
+        # --- Try processors
+        for Processor in ProcessorRegistry.get_processors():
             try:
-                tables = pdf.pages[0].extract_tables()
-                if tables:
-                    table = tables[0]
-                    headers = table[0]
-                    sample_rows = table[1:5]
-                else:
-                    headers, sample_rows = [], []
+                proc = Processor(pages_text)
 
-                log_unknown_layout(file_path, headers, sample_rows)
+                if proc.detect(first_text, last_text):
+                    selected_processor = proc
+                    logger.info(f"Processor in Use: {proc.name}")
+                    print(f" Processor in Use: {proc.name}")
 
-            except Exception:
-                logger.exception("Failed during fallback extraction")
+                    df = proc.extract()
 
-            return pd.DataFrame(), name, number
+                    if df is not None and not df.empty:
+                        break
 
-    except Exception:
-        logger.exception("Critical failure during PDF extraction")
-        return pd.DataFrame(), None, None
+            except Exception as e:
+                logger.exception(f"Processor {Processor.__name__} failed: {e}")
+                print(f"Processor {Processor.__name__} failed: {e}")
+                
+        if df is None:
+            df = extract_transaction_generic(pdf,keywords=['balance'])
+
+        # --- If processor succeeded
+        if df is not None and not df.empty:
+            
+            save_meta(
+                file_name=file_path,
+                processor=selected_processor.name,
+                pages_processed=len(pdf.pages),
+                time_taken=time.time() - start_time,
+            )
+            
+            return df, name, number
+
+        # --- Fallback: log unknown layout
+        try:
+            tables = pdf.pages[0].extract_tables()
+            if tables:
+                table = tables[0]
+                headers = table[0]
+                sample_rows = table[1:5]
+            else:
+                headers, sample_rows = [], []
+
+            log_unknown_layout(file_path, headers, sample_rows)
+
+        except Exception:
+            logger.exception("Failed during fallback extraction")
+
+        return pd.DataFrame(), name, number
