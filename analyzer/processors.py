@@ -1,6 +1,5 @@
 import re
 from analyzer.processor.moniepoint import extract_transaction_monie_correct
-from analyzer.processor.moniepoint_v2 import extract_transaction_moniepoint
 from analyzer.processor.wema import extract_transaction_wema
 from analyzer.processor.taj import extract_transaction_taj
 from analyzer.processor.opay import extract_transaction_opay
@@ -68,17 +67,7 @@ class MoniepointProcessor(BaseProcessor):
 
     def extract(self):
         return extract_transaction_monie_correct(self.page_text)
-    
-class MoniepointProcessor_v2(BaseProcessor):
-    name = "Moniepoint_v2"
 
-    def detect(self):
-        return bool(
-            re.search(r'([A-Z][a-z]+\s*\d{2}\s*[A-Z][a-z]+\s*Page)', self.page_text[0])
-        )
-
-    def extract(self):
-        return extract_transaction_moniepoint(self.page_text)
 '''
 class KudaProcessor(BaseProcessor):
     name = "Kuda"
