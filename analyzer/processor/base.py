@@ -6,11 +6,11 @@ class BaseProcessor(ABC):
 
     name = "Base"
 
-    def __init__(self, pdf):
-        self.pdf = pdf
+    def __init__(self, page_text):
+        self.page_text = page_text
 
     @abstractmethod
-    def detect(self, first_text: str, last_text: str) -> bool:
+    def detect(self) -> bool:
         """Return True if this processor matches the document."""
         pass
 
