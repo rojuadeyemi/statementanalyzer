@@ -122,7 +122,7 @@ def run_analysis(job_id, filepath, filename):
         )
 
         statement.generate_excel_report(excel_path)
-        statement.generate_json_report(json_path)
+        #statement.generate_json_report(json_path)
 
         del statement
         gc.collect()
@@ -134,7 +134,7 @@ def run_analysis(job_id, filepath, filename):
                 "status": "Completed",
                 "summary": summary,
                 "report_file": excel_path,
-                "json_file": json_path,
+                #"json_file": json_path,
                 "filename": filename,
                 "file_path": filepath,
                 "completed_at": datetime.utcnow(),
@@ -304,7 +304,7 @@ def download(job_id):
     )
 
 
-@app.route("/download_json/<job_id>")
+"""@app.route("/download_json/<job_id>")
 def download_json(job_id):
 
     job = jobs.get(job_id)
@@ -331,7 +331,7 @@ def download_json(job_id):
         as_attachment=True,
         download_name=download_name,
         mimetype="application/json",
-    )
+    )"""
 
 
 # -----------------------------
