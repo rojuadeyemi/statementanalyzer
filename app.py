@@ -124,6 +124,9 @@ def run_analysis(job_id, filepath, filename):
         statement.generate_excel_report(excel_path)
         statement.generate_json_report(json_path)
 
+        del statement
+        gc.collect()
+
         print(f"After report generation: {memory_usage():.1f} MB")
 
         jobs[job_id].update(
