@@ -8,7 +8,7 @@ import warnings
 def transaction_data(df):
 
     # Standardize column names
-    df = df.drop_duplicates().copy()
+    df = df.drop_duplicates()
     df.columns = df.columns.str.lower()
 
     # Define column name patterns
@@ -68,9 +68,9 @@ def transaction_data(df):
     new_df['amount'] = amount
     new_df['type'] = type_
     
-    new_df = new_df.dropna(subset=['date']).copy()  # Ensure date is not NaN
+    new_df.dropna(subset=['date'], inplace=True)  # Ensure date is not NaN
 
-    del df
+    del df, amount, type_, identified_columns
     return new_df
 
 def clean_and_parse_dates(series:pd.Series) -> pd.Series:
