@@ -4,7 +4,7 @@ from analyzer.data_extraction import DataExtractor
 from datetime import datetime,date
 import json
 import os
-from functools import cache_property
+from functools import cached_property
 
 class Analyzer:
     """Robust Statement Analyzer: Provides financial behavior and risk insights."""
@@ -55,7 +55,7 @@ class Analyzer:
         self.last_month_inflow = self.cashflow_summary['sum_credit'].iloc[-1]
                 
     # Cashflow Analysis
-    @cache_property
+    @cached_property
     def cashflow_summary(self) -> pd.DataFrame:
         """Summarize inflow and outflow trends by month."""
         summary = (self.non_others_df.groupby(["monthyear","type"])["amount"]
