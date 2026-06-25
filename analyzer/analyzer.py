@@ -4,7 +4,7 @@ from analyzer.data_extraction import DataExtractor
 from datetime import datetime,date
 import json
 import os
-from functools import cached_property
+from functools import cache_property
 
 class Analyzer:
     """Robust Statement Analyzer: Provides financial behavior and risk insights."""
@@ -55,7 +55,7 @@ class Analyzer:
         self.last_month_inflow = self.cashflow_summary['sum_credit'].iloc[-1]
                 
     # Cashflow Analysis
-    @cached_property
+    @cache_property
     def cashflow_summary(self) -> pd.DataFrame:
         """Summarize inflow and outflow trends by month."""
         summary = (self.non_others_df.groupby(["monthyear","type"])["amount"]
@@ -88,7 +88,6 @@ class Analyzer:
         summary.reset_index(inplace=True)
         return summary
         
-    @cached_property
     def cashflow_summary_wk(self) -> pd.DataFrame:
         """Summarize inflow and outflow trends by week."""
         summary = (
@@ -134,7 +133,6 @@ class Analyzer:
 
         return latest_repayment/self.last_month_inflow if self.last_month_inflow > 0 else 0
 
-    @cached_property
     def cashflows_by_category(self):
         """Monthly cashflow breakdown by category."""
         
@@ -151,7 +149,7 @@ class Analyzer:
         return result
 
     # Behavioral Analytics
-    @cached_property
+    @property
     def inflow_sources(self) -> pd.DataFrame:
         """Identify frequent senders (incoming transfers)."""
         
@@ -165,7 +163,7 @@ class Analyzer:
             .sort_values("total_inflow", ascending=False)
         )
 
-    @cached_property
+    @property
     def outflow_destinations(self) -> pd.DataFrame:
         """Identify common recipients (outgoing transfers)."""
         
@@ -179,7 +177,7 @@ class Analyzer:
             .sort_values("total_outflow", ascending=False)
         )
 
-    @cached_property
+    @property
     def account_sweep(self) -> pd.DataFrame:
         """Detect repetitive round-trips (same receiver, same day, same amount)."""
         
@@ -191,7 +189,7 @@ class Analyzer:
 
         return sweep[sweep["repeat_count"] > 1]
 
-    @cached_property
+    @property
     def average_monthly_balance(self) -> pd.DataFrame | None:
         """Estimate monthly average balance."""
         if 'balance' in self.df.columns:
@@ -207,7 +205,7 @@ class Analyzer:
             return pd.DataFrame()
 
     # Risk & Behavioral Insights
-    @cached_property
+    @property
     def risk_indicators(self):
         """Compute behavioral red flags and liquidity patterns."""
         inflow = self.inflows["amount"]
@@ -215,7 +213,7 @@ class Analyzer:
         loan_disbursements = self.data.get('loan',pd.Series())
         average_inflow = self.transfer_only_inflow['amount'].mean()
 
-        flight_risk = 1 if (self.df["category"] == "travelling").sum() > 0 else 0
+        flight_risk = 0 if self.data.get('travelling',pd.Series()).empty else 1
         
         bal_floor = None
         if 'balance' in self.df.columns:
@@ -258,7 +256,7 @@ class Analyzer:
                             "Loan Repayment Count": len(self.loan_repayments),
                             "Loan Disbursement Amount": int(abs(loan_disbursements.sum())),
                             "Loan Disbursement Count": len(loan_disbursements),
-                            "VAS Amount": abs(self.df[self.df["category"] == "VAS"]["amount"].sum()),
+                            "VAS Amount": abs(self.data.get('VAS',pd.Series()).sum()),
                             "Flight Risk": f"{flight_risk:.1%}",
                           "Concentration Risk": f"{np.nan_to_num(largest_share):.1%}",
                             "DTIR":f"{self.dtir:.1%}",
@@ -312,7 +310,7 @@ class Analyzer:
         print("\n" + "=" * 60)
         print("CASHFLOW BY CATEGORY")
         print("=" * 60)
-        print(self.cashflows_by_category)
+        print(self.cashflows_by_category())
 
         print("\n" + "=" * 60)
         print("ROUND-TRIP TRANSFERS (ACCOUNT SWEEP)")
@@ -353,8 +351,8 @@ class Analyzer:
             self.risk_indicators.to_excel(writer, sheet_name='Statement Summary')
             self.df.to_excel(writer, sheet_name='Transaction Data', index=False)
             self.cashflow_summary.to_excel(writer, sheet_name='Month-on-Month Cashflow', index=False)
-            self.cashflow_summary_wk.to_excel(writer, sheet_name='Week-on-Week Cashflow', index=False)
-            self.cashflows_by_category.to_excel(writer, sheet_name='Category Cashflow', index=False)
+            self.cashflow_summary_wk().to_excel(writer, sheet_name='Week-on-Week Cashflow', index=False)
+            self.cashflows_by_category().to_excel(writer, sheet_name='Category Cashflow', index=False)
             self.account_sweep.to_excel(writer, sheet_name='Account Sweep', index=False)
             self.inflow_sources.to_excel(writer, sheet_name='Inflow By Sender', index=False)
             self.outflow_destinations.to_excel(writer, sheet_name='Outflow By Receiver', index=False)
@@ -381,13 +379,13 @@ class Analyzer:
                 index=False
             )
     
-            self.cashflow_summary_wk.to_excel(
+            self.cashflow_summary_wk().to_excel(
                 writer,
                 sheet_name="Week-on-Week Cashflow",
                 index=False
             )
     
-            self.cashflows_by_category.to_excel(
+            self.cashflows_by_category().to_excel(
                 writer,
                 sheet_name="Category Cashflow",
                 index=False
@@ -435,8 +433,8 @@ class Analyzer:
                 "net_position": int(self.inflows["amount"].sum() - abs(self.outflows["amount"].sum())),
             },
             "cashflow_summary": self.cashflow_summary,
-            "cashflow_summary_weekly": self.cashflow_summary_wk,
-            "cashflows_by_category": self.cashflows_by_category,
+            "cashflow_summary_weekly": self.cashflow_summary_wk(),
+            "cashflows_by_category": self.cashflows_by_category(),
             "inflow_sources": self.inflow_sources,
             "outflow_destinations": self.outflow_destinations,
             "round_trip_transfers": self.account_sweep,
