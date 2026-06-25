@@ -412,12 +412,11 @@ class DataExtractor(BaseDataTransformer):
             )
             
             self.df = processor.process()
-
-            del self.data
-            del payload
-
+            
             # Final Categorization
             df = self.categorize_narration()
+
+            del self.data, self.df
 
             df = df.sort_values('date')
 
