@@ -360,28 +360,67 @@ class Analyzer:
             self.outflow_destinations.to_excel(writer, sheet_name='Outflow By Receiver', index=False)
             self.average_monthly_balance.to_excel(writer, sheet_name='Account Balance', index=False)
 
-    def generate_excel_report(self):
-        """Generate Excel file in memory and return buffer."""
-        from io import BytesIO
+    def generate_excel_report(self, output_path):
+        
+        with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
+    
+            self.risk_indicators.to_excel(
+                writer,
+                sheet_name="Statement Summary"
+            )
+    
+            self.df.to_excel(
+                writer,
+                sheet_name="Transaction Data",
+                index=False
+            )
+    
+            self.cashflow_summary.to_excel(
+                writer,
+                sheet_name="Month-on-Month Cashflow",
+                index=False
+            )
+    
+            self.cashflow_summary_wk.to_excel(
+                writer,
+                sheet_name="Week-on-Week Cashflow",
+                index=False
+            )
+    
+            self.cashflows_by_category.to_excel(
+                writer,
+                sheet_name="Category Cashflow",
+                index=False
+            )
+    
+            self.account_sweep.to_excel(
+                writer,
+                sheet_name="Account Sweep",
+                index=False
+            )
+    
+            self.inflow_sources.to_excel(
+                writer,
+                sheet_name="Inflow By Sender",
+                index=False
+            )
+    
+            self.outflow_destinations.to_excel(
+                writer,
+                sheet_name="Outflow By Receiver",
+                index=False
+            )
+    
+            self.average_monthly_balance.to_excel(
+                writer,
+                sheet_name="Account Balance",
+                index=False
+            )
+    
+        return output_path
 
-        output = BytesIO()
 
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            self.risk_indicators.to_excel(writer, sheet_name='Statement Summary')
-            self.df.to_excel(writer, sheet_name='Transaction Data', index=False)
-            self.cashflow_summary.to_excel(writer, sheet_name='Month-on-Month Cashflow', index=False)
-            self.cashflow_summary_wk.to_excel(writer, sheet_name='Week-on-Week Cashflow', index=False)
-            self.cashflows_by_category.to_excel(writer, sheet_name='Category Cashflow', index=False)
-            self.account_sweep.to_excel(writer, sheet_name='Account Sweep', index=False)
-            self.inflow_sources.to_excel(writer, sheet_name='Inflow By Sender', index=False)
-            self.outflow_destinations.to_excel(writer, sheet_name='Outflow By Receiver', index=False)
-            self.average_monthly_balance.to_excel(writer, sheet_name='Account Balance', index=False)
-
-        output.seek(0)
-        return output
-
-
-    def generate_json_report(self) -> str:
+    def generate_json_report(self, output_path):
         """Return a structured JSON report for API or dashboard consumption."""
 
         report = {
@@ -408,8 +447,16 @@ class Analyzer:
                 "disbursements": self.df[self.df["category"] == "loan"],
             },
         }
+
+            with open(output_path, "w", encoding="utf-8") as f:
+            json.dump(
+                report,
+                f,
+                indent=2,
+                default=Analyzer.safe_json_convert
+            )
     
-        return json.dumps(report, indent=2, default=Analyzer.safe_json_convert)
+        return output_path
 
     def save_json(self):
         # Writing to a file
