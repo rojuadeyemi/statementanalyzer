@@ -13,8 +13,16 @@ import pdfplumber
 from ..config import DEFAULT_SETTINGS, Settings
 from ..models import QualityReport, Statement
 from ..normalize import normalize
-from ..parsers import ColumnLayoutParser, Document, LLMParser, StatementParser, TableParser, detect_bank
-from ..parsers.generic import MoniepointTableParser, TextRowParser
+from ..parsers import (
+    ColumnLayoutParser,
+    Document,
+    LLMParser,
+    MoniepointTableParser,
+    StatementParser,
+    TableParser,
+    TextRowParser,
+    detect_bank,
+)
 from ..parsing import parse_amount
 
 logging.getLogger("pdfminer").setLevel(logging.ERROR)
@@ -107,11 +115,15 @@ def parse_pdf(path: str | Path, settings: Settings = DEFAULT_SETTINGS) -> Statem
         if bank:
             results.append(_run(bank, doc, opening, settings))
 
-        # Generic parsers run when no spec matched OR the spec's output fails validation.
+        # Generic parsers run when no spec matched OR the spec's output fails
+        # validation. They are ordered cheapest-and-most-structured first; the
+        # loop stops as soon as one passes validation, and the best-scoring
+        # result wins in any case.
         if not results or not _good_enough(results[-1][2], settings):
-            generic = [ColumnLayoutParser(), TableParser(), TextRowParser()]
-            if MoniepointTableParser().detect(doc):
-                generic.insert(0, MoniepointTableParser())
+            fixed_header = MoniepointTableParser()
+            generic: list[StatementParser] = [ColumnLayoutParser(), TableParser(), TextRowParser()]
+            if fixed_header.detect(doc):
+                generic.insert(0, fixed_header)
             for parser in generic:
                 results.append(_run(parser, doc, opening, settings))
                 if _good_enough(results[-1][2], settings):

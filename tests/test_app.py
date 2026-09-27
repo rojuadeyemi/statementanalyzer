@@ -33,3 +33,23 @@ def test_charts_build_valid_specs():
         assert spec["encoding"]
     assert app.money(1234.5) == "₦1,234.50"
     assert app.money(None) == "—"
+
+
+def test_password_gate(monkeypatch):
+    monkeypatch.setenv("APP_PASSWORD", "secret123")
+    at = AppTest.from_file(str(APP), default_timeout=60).run()
+    assert at.text_input and not at.get("file_uploader")     # gated
+
+    at.text_input[0].set_value("wrong").run()
+    at.button[0].click().run()
+    assert at.error
+
+    at.text_input[0].set_value("secret123").run()
+    at.button[0].click().run()
+    assert at.get("file_uploader") and not at.exception      # through
+
+
+def test_no_gate_without_the_env_var(monkeypatch):
+    monkeypatch.delenv("APP_PASSWORD", raising=False)
+    at = AppTest.from_file(str(APP), default_timeout=60).run()
+    assert at.get("file_uploader") and not at.exception

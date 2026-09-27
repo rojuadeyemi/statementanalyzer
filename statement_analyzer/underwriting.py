@@ -175,7 +175,7 @@ class AffordabilityAnalyzer:
         s = self.s
         credits = self.df.loc[
             self.is_credit
-            & self.df["amount"].between(s.min_salary_amount, s.max_salary_amount),
+            & self.df["amount"].between(s.salary_pattern_min_amount, s.salary_pattern_max_amount),
             ["date", "amount"],
         ].copy()
         if credits.empty:

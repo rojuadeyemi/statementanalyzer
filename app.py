@@ -7,7 +7,9 @@ risk summary and the affordability view, then download the Excel/JSON report.
 """
 from __future__ import annotations
 
+import hmac
 import json
+import os
 import tempfile
 from pathlib import Path
 
@@ -26,7 +28,7 @@ st.set_page_config(page_title="Statement Analyzer", page_icon="📄", layout="wi
 
 
 # ---------------------------------------------------------------- data layer
-@st.cache_data(show_spinner=False, max_entries=20)
+@st.cache_data(show_spinner=False, max_entries=8)
 def _load(file_bytes: bytes, filename: str, settings: Settings):
     """Cached so switching tabs or tweaking the view doesn't re-parse the PDF."""
     suffix = Path(filename).suffix or ".pdf"
@@ -37,6 +39,27 @@ def _load(file_bytes: bytes, filename: str, settings: Settings):
         return load_statement(path, settings=settings)
     finally:
         path.unlink(missing_ok=True)
+
+
+def password_accepted() -> bool:
+    """Gate the app when APP_PASSWORD is set (i.e. anywhere it is deployed).
+
+    Statements are personal financial data; a public URL should not serve them
+    to whoever finds it. With no APP_PASSWORD set — running locally — the app
+    is open as before.
+    """
+    expected = os.environ.get("APP_PASSWORD")
+    if not expected or st.session_state.get("authenticated"):
+        return True
+
+    with st.form("sign-in"):
+        entered = st.text_input("Password", type="password")
+        if st.form_submit_button("Enter"):
+            if hmac.compare_digest(entered, expected):
+                st.session_state["authenticated"] = True
+                st.rerun()
+            st.error("Incorrect password.")
+    return False
 
 
 def money(value) -> str:
@@ -64,9 +87,7 @@ def sidebar_settings() -> Settings:
         frac_sal = st.slider("Repayment capacity — salaried", 0.0, 1.0, 0.33, 0.01)
         frac_non = st.slider("Repayment capacity — non-salaried", 0.0, 1.0, 0.30, 0.01)
         margin = st.slider("Income margin on inflow (non-salaried)", 0.0, 1.0, 0.30, 0.05)
-        recency = st.number_input("Salary counts as recent within (days)", 7, 180, 90)
-        salary_min = st.number_input("Amount below this can not be considered as salary", 0, 1_000_000, 100_000, 5000)
-        salary_max = st.number_input("Amount above this can not be considered as salary", 0, 5_000_000, 2_000_000, 5000)
+        recency = st.number_input("Salary counts as recent within (days)", 7, 120, 45)
 
     with st.sidebar.expander("AI fallback", expanded=False):
         st.caption("Used only when every rule-based parser fails validation. "
@@ -80,8 +101,7 @@ def sidebar_settings() -> Settings:
         cutoff_months=int(cutoff), min_reconciliation=float(min_rec),
         salary_baseline_mode=baseline, repayment_fraction_salaried=float(frac_sal),
         repayment_fraction_non_salaried=float(frac_non), inflow_margin=float(margin),
-        salary_recency_days=int(recency), enable_llm=bool(enable_llm), llm_model=model,min_salary_amount=salary_min,
-        max_salary_amount=salary_max,
+        salary_recency_days=int(recency), enable_llm=bool(enable_llm), llm_model=model,
         **({"llm_api_key": api_key} if api_key else {}),
     )
 
@@ -150,20 +170,6 @@ def category_chart(df: pd.DataFrame) -> alt.Chart:
 
 
 # -------------------------------------------------------------------- panes
-def quality_banner(statement) -> None:
-    q = statement.quality
-    rate = q.reconciliation_rate
-    left, right = st.columns([1, 3])
-    #left.metric("Parser", statement.source.replace("pdf:", ""))
-    label = "n/a (no running balance)" if rate is None else f"{rate:.0%}"
-    right.metric("Rows reconciled against the balance", f"{q.reconciled}/{q.checked}" if q.checked else "—",
-                 delta=label, delta_color="off")
-    if rate is not None and rate < 0.95:
-        st.warning("Some rows don't reconcile — rows may be missing or mis-read. Check the Transactions tab.")
-    for w in q.warnings:
-        st.caption(f"• {w}")
-
-
 def overview(a: StatementAnalyzer) -> None:
     r = a.risk_indicators
     c = st.columns(4)
@@ -276,6 +282,9 @@ def main() -> None:
     st.caption("Upload a bank statement to extract transactions, check them against the running "
                "balance, and size up affordability.")
 
+    if not password_accepted():
+        return
+
     settings = sidebar_settings()
     files = st.file_uploader("Bank statements", type=["pdf", "json", "txt"],
                              accept_multiple_files=True)
@@ -296,14 +305,12 @@ def main() -> None:
 
     if statement.empty:
         st.error("No transactions could be extracted from this file.")
-        quality_banner(statement)
         return
 
     header = st.columns(4)
     header[0].metric("Account name", statement.account_name or "—")
     header[1].metric("Account number", statement.account_number or "—")
     header[2].metric("Transactions", f"{len(statement.transactions):,}")
-
     q = statement.quality
     rate = q.reconciliation_rate
     label = "n/a (no running balance)" if rate is None else f"{rate:.0%}"

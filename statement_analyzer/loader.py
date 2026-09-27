@@ -54,6 +54,8 @@ def load_statement(
     if not df.empty:
         cutoff = df["date"].max() - relativedelta(months=settings.cutoff_months)
         df = df[df["date"] >= cutoff]
+        # Exact duplicates (same date, narration, amount AND balance) come from
+        # overlapping pages; without a balance they may be genuine repeats.
         if df["balance"].notna().any():
             df = df.drop_duplicates(subset=["date", "narration", "amount", "direction", "balance"])
         statement.transactions = enrich(df.reset_index(drop=True), rules)

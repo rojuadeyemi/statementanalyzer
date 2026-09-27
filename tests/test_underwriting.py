@@ -126,3 +126,103 @@ def test_pipeline_does_not_crash_when_llm_enabled_without_key(tmp_path):
     s = load_statement(pdf, settings=Settings(enable_llm=True, llm_api_key=None, min_reconciliation=1.1))
     assert not s.transactions.empty
     assert any("LLM fallback skipped" in w for w in s.quality.warnings)
+
+
+# ------------------------------------------------- payday regularity checks
+def salary_rows(dates, amounts, narration="NIP TRSF FRM ACME VENTURES LTD"):
+    balance, rows = 100_000.0, []
+    for date, amount in zip(dates, amounts):
+        balance += amount
+        rows.append((date, narration, amount, "credit", balance))
+        balance -= 20_000
+        rows.append(((pd.Timestamp(date) + pd.Timedelta(days=3)).date(), "POS purchase", 20_000, "debit", balance))
+    return rows
+
+
+def detect(rows, **settings_kw):
+    from statement_analyzer.underwriting import AffordabilityAnalyzer
+    return AffordabilityAnalyzer(build(rows), Settings(**settings_kw))._salary_by_pattern()
+
+
+@pytest.mark.parametrize("label, dates", [
+    ("same day each month", ["2024-01-25", "2024-02-25", "2024-03-25", "2024-04-25", "2024-05-25"]),
+    ("last day of month", ["2024-01-31", "2024-02-29", "2024-03-31", "2024-04-30", "2024-05-31"]),
+    ("weekend drift", ["2024-01-25", "2024-02-23", "2024-03-27", "2024-04-25", "2024-05-24"]),
+    # The reason paydays are measured from the end of the cycle month: on raw
+    # day-of-month these swing by 15 days and would be rejected.
+    ("straddles month end", ["2024-01-31", "2024-03-01", "2024-03-30", "2024-05-01"]),
+])
+def test_regular_paydays_are_detected(label, dates):
+    amounts, last = detect(salary_rows(dates, [500_000] * len(dates)))
+    assert len(amounts) == len(dates), label
+
+
+def test_irregular_paydays_are_rejected():
+    dates = ["2024-01-20", "2024-02-03", "2024-03-28", "2024-04-05", "2024-05-22"]
+    assert detect(salary_rows(dates, [500_000] * 5)) == ([], None)
+
+
+def test_one_duplicate_credit_does_not_hide_the_salary():
+    """A second same-size credit in one cycle drops that cycle, not the pattern."""
+    dates = [f"2024-{m:02d}-25" for m in range(1, 6)]
+    rows = salary_rows(dates, [500_000] * 5)
+    rows.append(("2024-03-02", "NIP TRSF FRM ACME VENTURES LTD", 500_000, "credit", 900_000.0))
+    amounts, last = detect(rows)
+    assert len(amounts) == 4          # March dropped, the other four still detected
+    assert last is not None
+
+
+def test_amount_range_is_configurable():
+    dates = [f"2024-{m:02d}-25" for m in range(1, 6)]
+    rows = salary_rows(dates, [45_000] * 5)
+    assert detect(rows) == ([], None)                                   # below the default floor
+    amounts, _ = detect(rows, salary_pattern_min_amount=30_000)
+    assert len(amounts) == 5
+    assert detect(rows, salary_pattern_min_amount=30_000, salary_pattern_max_amount=40_000) == ([], None)
+
+
+# --------------------------------------------------- cycle (month) regularity
+CYCLE_CASES = {
+    "every month": (["2024-01-25", "2024-02-25", "2024-03-25", "2024-04-25", "2024-05-25"], True),
+    "one skipped month": (["2024-01-25", "2024-02-25", "2024-04-25", "2024-05-25"], True),
+    "two skipped months": (["2024-01-25", "2024-02-25", "2024-05-25", "2024-06-25"], False),
+    "quarterly": (["2024-01-25", "2024-04-25", "2024-07-25"], False),
+    "six consecutive months": ([f"2024-{m:02d}-25" for m in range(1, 7)], True),
+}
+
+
+@pytest.mark.parametrize("label, case", CYCLE_CASES.items(), ids=list(CYCLE_CASES))
+def test_cycle_gaps(label, case):
+    dates, expected = case
+    amounts, _ = detect(salary_rows(dates, [500_000] * len(dates)))
+    assert bool(amounts) is expected, label
+
+
+def test_cycle_gap_tolerance_is_configurable():
+    dates = ["2024-01-25", "2024-02-25", "2024-05-25", "2024-06-25"]    # a two-month gap
+    assert detect(salary_rows(dates, [500_000] * 4)) == ([], None)
+    amounts, _ = detect(salary_rows(dates, [500_000] * 4), salary_max_cycle_gap=3)
+    assert len(amounts) == 4
+
+    strict = detect(salary_rows(["2024-01-25", "2024-02-25", "2024-04-25", "2024-05-25"], [500_000] * 4),
+                    salary_max_cycle_gap=1)
+    assert strict == ([], None)      # gaps of 1 only: the skipped March disqualifies it
+
+
+def test_unbroken_salary_is_preferred_over_a_larger_gappy_one():
+    unbroken = salary_rows([f"2024-{m:02d}-25" for m in range(1, 6)], [400_000] * 5)
+    gappy = salary_rows(["2024-01-26", "2024-02-26", "2024-04-26", "2024-05-26"], [900_000] * 4,
+                        narration="NIP TRSF FRM OTHER SOURCE")
+    amounts, _ = detect(unbroken + gappy)
+    assert amounts == [400_000] * 5
+
+
+def test_cycle_helpers_directly():
+    from statement_analyzer.underwriting import AffordabilityAnalyzer
+
+    a = AffordabilityAnalyzer(build(salary_rows([f"2024-{m:02d}-25" for m in range(1, 6)], [500_000] * 5)), Settings())
+    rows = pd.DataFrame({"cycle": pd.PeriodIndex(["2024-01", "2024-02", "2024-04"], freq="M")})
+    assert a._cycle_is_regular(rows) is True
+    assert a._cycle_continuity(rows) == 0.75            # 3 paid cycles across a 4-month span
+    gappy = pd.DataFrame({"cycle": pd.PeriodIndex(["2024-01", "2024-05"], freq="M")})
+    assert a._cycle_is_regular(gappy) is False

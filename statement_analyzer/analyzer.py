@@ -205,7 +205,7 @@ class StatementAnalyzer:
             "Loan Disbursement Count": len(loans),
             "VAS Amount": round(float(self.core.loc[self.core["category"] == "VAS", "amount"].sum()), 2),
             "Flight Risk": "Yes" if (self.df["category"] == "travelling").any() else "No",
-            "Concentration Risk": pct(float(shares.max())) if not shares.empty else None,
+            "Concentration Risk": pct(float(shares.max())) if len(shares) else None,
             "DTIR": pct(aff.existing_dtir),
             "Zeroing Rate": pct(aff.zeroing_rate),
             "Balance Floor": balance_floor,
