@@ -1,13 +1,14 @@
 # Runtime dependencies for the Streamlit app on Render.
 # (Local development can use `pip install -e ".[app,dev]"` instead.)
-streamlit>=1.49,<2
-altair>=5,<6
-pandas>=2.0,<3
-numpy>=1.26,<3
-pdfplumber>=0.11,<0.12
-python-dateutil>=2.9
-openpyxl>=3.1
+altair==5,<6
+numpy==1.26
+python-dateutil==2.9
+openpyxl==3.1
 
 # Optional AI fallback. Harmless when ANTHROPIC_API_KEY is unset: the parser
 # reports that it can't run and the rule-based parsers carry on.
-anthropic>=0.40
+anthropic==0.40
+
+streamlit==1.49.1
+pandas==2.3.3
+pdfplumber==0.11.7
