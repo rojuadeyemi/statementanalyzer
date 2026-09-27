@@ -28,7 +28,7 @@ st.set_page_config(page_title="Statement Analyzer", page_icon="📄", layout="wi
 
 
 # ---------------------------------------------------------------- data layer
-@st.cache_data(show_spinner=False, max_entries=8)
+@st.cache_data(show_spinner=False, max_entries=1)
 def _load(file_bytes: bytes, filename: str, settings: Settings):
     """Cached so switching tabs or tweaking the view doesn't re-parse the PDF."""
     suffix = Path(filename).suffix or ".pdf"
