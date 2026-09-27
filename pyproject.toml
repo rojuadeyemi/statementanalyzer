@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "statement-analyzer"
+version = "2.1.0"
+requires-python = ">=3.10"
+dependencies = ["pandas>=2.0", "numpy", "pdfplumber>=0.10", "python-dateutil", "openpyxl"]
+
+[project.optional-dependencies]
+llm = ["anthropic"]
+app = ["streamlit>=1.49", "altair>=5"]
+dev = ["pytest", "reportlab", "streamlit>=1.49", "altair>=5"]
+
+[tool.setuptools.packages.find]
+include = ["statement_analyzer*"]
