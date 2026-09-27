@@ -30,7 +30,7 @@ def default_rules(s: Settings = DEFAULT_SETTINGS) -> list[Rule]:
         Rule("charges", EXCLUSION),
         Rule("VAS", r"startimes|gotv|dstv|electricity|cable|airtime|\bmtn\b|airtel|\bglo\b|9mobile|\bvtu\b|voucher"
                     r"|internet bundle|recharge|night plan|\bdata\b"),
-        Rule("bonus/allowance", ALLOWANCES),
+        Rule("bonus/allowance", ALLOWANCES,CREDIT),
         Rule("salary", SALARY_RECEIVED, CREDIT, s.min_salary_amount),
         Rule("salary_payment", SALARY_RECEIVED, DEBIT, s.min_salary_amount),
         Rule("loan_repayment", REPAYMENT_PATTERN, DEBIT, s.min_loan_repayment_amount),
