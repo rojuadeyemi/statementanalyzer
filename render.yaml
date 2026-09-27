@@ -18,4 +18,4 @@ services:
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: STATEMENT_ENABLE_LLM
-        value: "0
+        value: "0"
