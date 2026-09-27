@@ -1,6 +1,6 @@
 # Runtime dependencies for the Streamlit app on Render.
 # (Local development can use `pip install -e ".[app,dev]"` instead.)
-altair==5,<6
+altair
 numpy==1.26
 python-dateutil==2.9
 openpyxl==3.1
