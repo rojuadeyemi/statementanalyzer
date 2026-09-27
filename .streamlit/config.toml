@@ -1,0 +1,14 @@
+[server]
+headless = true
+maxUploadSize = 10
+enableXsrfProtection = true
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+base = "dark"
+primaryColor = "#2a78d6"
+
+[client]
+showErrorDetails = "full"
