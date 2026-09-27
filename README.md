@@ -183,7 +183,7 @@ Many banks need no spec at all: if the statement has a readable header row, the 
 pip install -e ".[dev]" && pytest
 ```
 
-Try it out [analyzerplus](https://statement-analyzer-pro.streamlit.app/)
+Try it out [analyzerpro](https://statement-analyzer-pro.streamlit.app/)
 
 
 
