@@ -77,17 +77,13 @@ def sidebar_settings() -> Settings:
 
     with st.sidebar.expander("Extraction", expanded=False):
         cutoff = st.number_input("History window (months)", 1, 60, 36)
-        min_rec = st.slider("Minimum reconciliation before retrying parsers", 0.0, 1.0, 0.90, 0.05,
-                            help="If fewer rows than this reconcile against the running balance, "
-                                 "the generic parsers are tried as well and the best result wins.")
 
     with st.sidebar.expander("Underwriting", expanded=False):
         baseline = st.radio("Salary baseline", ["min_non_zero", "median"], horizontal=True,
                             help="min_non_zero is the conservative choice.")
-        frac_sal = st.slider("Repayment capacity — salaried", 0.0, 1.0, 0.33, 0.01)
-        frac_non = st.slider("Repayment capacity — non-salaried", 0.0, 1.0, 0.30, 0.01)
-        margin = st.slider("Income margin on inflow (non-salaried)", 0.0, 1.0, 0.30, 0.05)
-        recency = st.number_input("Salary counts as recent within (days)", 7, 120, 45)
+        frac_sal = st.slider("Repayment capacity — salaried", 0.0, 1.0, 0.55, 0.01)
+        frac_non = st.slider("Repayment capacity — non-salaried", 0.0, 1.0, 0.45, 0.01)
+        margin = st.slider("Income margin on inflow (non-salaried)", 0.0, 1.0, 0.15, 0.05)
 
     with st.sidebar.expander("AI fallback", expanded=False):
         st.caption("Used only when every rule-based parser fails validation. "
@@ -98,10 +94,10 @@ def sidebar_settings() -> Settings:
         model = st.text_input("Model", value=Settings().llm_model)
 
     settings = Settings(
-        cutoff_months=int(cutoff), min_reconciliation=float(min_rec),
+        cutoff_months=int(cutoff),
         salary_baseline_mode=baseline, repayment_fraction_salaried=float(frac_sal),
         repayment_fraction_non_salaried=float(frac_non), inflow_margin=float(margin),
-        salary_recency_days=int(recency), enable_llm=bool(enable_llm), llm_model=model,
+        enable_llm=bool(enable_llm), llm_model=model,
         **({"llm_api_key": api_key} if api_key else {}),
     )
 
