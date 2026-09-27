@@ -5,23 +5,17 @@ services:
     name: statement-analyzer
     runtime: python
     plan: free          # free spins down after ~15 min idle; a cold PDF parse is slow
-    region: frankfurt      # closest to Nigeria of Render's regions; oregon/ohio also fine
+    region: frankfurt      # oregon/ohio also fine
     buildCommand: pip install -r requirements.txt
-    # Streamlit must bind 0.0.0.0 and the port Render injects, or the deploy
-    # fails health checks with "no open ports detected".
     startCommand: streamlit run app.py --server.port $PORT --server.address 0.0.0.0
     healthCheckPath: /_stcore/health
     autoDeploy: true
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.11"
-      # Password-protects the whole app. Generated once by Render; read it in
-      # the dashboard under Environment. Remove this block to run it open.
-      #- key: APP_PASSWORD
-        generateValue: true
-      # Optional AI fallback for unreadable layouts. Leave unset to keep the
-      # app fully rule-based; set it in the dashboard (never in this file).
+      - key: APP_PASSWORD
+        sync: false
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: STATEMENT_ENABLE_LLM
-        value: "0"
+        value: "0
