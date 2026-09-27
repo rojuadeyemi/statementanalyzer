@@ -19,6 +19,12 @@ class Settings:
     # Tolerance (in currency units) for balance reconciliation.
     balance_tolerance: float = 0.02
 
+    # Wall-clock budget for extracting one document. Parsers stop at the
+    # deadline and the best result so far is used. Hosts such as Streamlit
+    # Community Cloud kill a process that stops answering health checks, so an
+    # unbounded parse of a complex PDF takes the whole app down with it.
+    max_parse_seconds: float = 30.0
+
     # ------------------------------------------------------------------ LLM
     # Optional LLM fallback for unknown layouts. Off by default because it
     # sends statement text to an external API.
@@ -31,7 +37,7 @@ class Settings:
 
     # ------------------------------------------------------- categorisation
     min_transfer_amount: float = 100
-    min_salary_amount: float = 30_000
+    min_salary_amount: float = 100_000
     min_loan_repayment_amount: float = 100
 
     # -------------------------------------------------------- underwriting
@@ -39,12 +45,12 @@ class Settings:
     salary_baseline_mode: str = "min_non_zero"
     # A salary is "recent" if the last one landed within this many days of the
     # statement's end date.
-    salary_recency_days: int = 45
+    salary_recency_days: int = 90
     # Pattern-based salary detection (used when no narration says "salary").
     # NOTE: distinct from min_salary_amount above, which only decides whether a
     # narration that says "salary" is labelled as one.
     salary_pattern_min_amount: float = 100_000      # credits outside this range are ignored
-    salary_pattern_max_amount: float = 20_000_000
+    salary_pattern_max_amount: float = 2_000_000
     salary_window_days: tuple[int, int] = (20, 7)   # paid on/after the 20th, or by the 7th
     salary_diff_tolerance: float = 0.05       # amounts within 5% are the same "salary"
     salary_min_cycles: int = 3                # seen in at least N monthly cycles
@@ -56,10 +62,10 @@ class Settings:
     salary_max_cycle_gap: int = 2
 
     # Share of income considered available for a new loan repayment.
-    repayment_fraction_salaried: float = 0.33
-    repayment_fraction_non_salaried: float = 0.30
+    repayment_fraction_salaried: float = 0.50
+    repayment_fraction_non_salaried: float = 0.45
     # For non-salaried customers, the share of gross inflow treated as income.
-    inflow_margin: float = 0.30
+    inflow_margin: float = 0.15
 
     # Weekly trend needs a minimum history; below it the slope is unknown.
     min_weeks_for_slope: int = 8

@@ -9,6 +9,7 @@ number/date/direction work once.
 from __future__ import annotations
 
 import re
+import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Callable, Optional, Sequence
@@ -92,6 +93,11 @@ class StatementParser(ABC):
     date_formats: Optional[Sequence[str]] = None
     drop_patterns: Sequence[str] = ()
     order: str = "auto"            # "auto" | "asc" | "desc" (newest first)
+    deadline: Optional[float] = None   # time.monotonic() value; set by the pipeline
+
+    def out_of_time(self) -> bool:
+        """True once the pipeline's budget is spent; parsers return what they have."""
+        return self.deadline is not None and time.monotonic() > self.deadline
 
     def detect(self, doc: Document) -> bool:  # generic parsers accept anything
         return True

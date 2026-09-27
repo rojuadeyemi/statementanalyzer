@@ -15,13 +15,14 @@ from . import StatementAnalyzer, load_statement, write_excel, write_json
 
 def _check(folder: Path) -> int:
     files = sorted(p for p in folder.rglob("*") if p.suffix.lower() in {".pdf", ".json"})
-    print(f"{'file':40} {'parser':28} {'rows':>6} {'reconciled':>11}  warnings")
+    print(f"{'file':40} {'parser':28} {'rows':>6} {'reconciled':>11} {'secs':>6}  warnings")
     for f in files:
         try:
             s = load_statement(f)
             rate = s.quality.reconciliation_rate
             print(f"{f.name[:40]:40} {s.source[:28]:28} {s.quality.rows:6d} "
-                  f"{'n/a' if rate is None else f'{rate:.1%}':>11}  {'; '.join(s.quality.warnings)}")
+                  f"{'n/a' if rate is None else f'{rate:.1%}':>11} {s.quality.seconds:6.1f}  "
+                  f"{'; '.join(s.quality.warnings)}")
         except Exception as exc:  # keep going through the batch
             print(f"{f.name[:40]:40} ERROR: {exc}")
     return 0

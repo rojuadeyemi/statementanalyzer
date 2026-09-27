@@ -5,9 +5,6 @@ only after the deterministic parsers fail validation. The output goes through
 the same normalizer and balance reconciliation as every other parser, so a
 hallucinated row shows up as a reconciliation failure instead of silently
 entering the analysis.
-
-Privacy: this sends statement text to an external API. Make sure that is
-allowed for your customers' data before enabling it.
 """
 from __future__ import annotations
 

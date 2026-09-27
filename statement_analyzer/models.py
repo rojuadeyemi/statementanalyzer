@@ -43,6 +43,7 @@ class QualityReport:
     checked: int = 0            # rows where reconciliation was possible
     reconciled: int = 0         # rows where prev_balance +/- amount == balance
     heuristic_directions: int = 0
+    seconds: float = 0.0
     warnings: list[str] = field(default_factory=list)
 
     @property
@@ -63,6 +64,7 @@ class QualityReport:
             "rows_with_balance": self.rows_with_balance,
             "reconciliation_rate": None if rate is None else round(rate, 4),
             "heuristic_directions": self.heuristic_directions,
+            "seconds": self.seconds,
             "warnings": self.warnings,
         }
 

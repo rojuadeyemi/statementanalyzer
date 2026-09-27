@@ -8,6 +8,7 @@ risk summary and the affordability view, then download the Excel/JSON report.
 from __future__ import annotations
 
 import hmac
+import inspect
 import json
 import os
 import tempfile
@@ -28,7 +29,7 @@ st.set_page_config(page_title="Statement Analyzer", page_icon="📄", layout="wi
 
 
 # ---------------------------------------------------------------- data layer
-@st.cache_data(show_spinner=False, max_entries=1)
+@st.cache_data(show_spinner=False, max_entries=8)
 def _load(file_bytes: bytes, filename: str, settings: Settings):
     """Cached so switching tabs or tweaking the view doesn't re-parse the PDF."""
     suffix = Path(filename).suffix or ".pdf"
@@ -62,6 +63,26 @@ def password_accepted() -> bool:
     return False
 
 
+def fill(element) -> dict:
+    """Kwargs that make an element fill its container, whatever Streamlit version is installed.
+
+    Streamlit renamed ``use_container_width=True`` to ``width="stretch"``, and
+    did it for different elements in different releases — the deployed version
+    may be older than the one you develop against. Ask the function itself.
+    """
+    try:
+        params = inspect.signature(element).parameters
+    except (TypeError, ValueError):      # wrapped without a usable signature
+        return {"use_container_width": True}
+    # Prefer the legacy kwarg while it exists: older releases have a `width`
+    # that takes pixels, not "stretch", so its presence alone proves nothing.
+    if "use_container_width" in params:
+        return {"use_container_width": True}
+    if "width" in params:
+        return {"width": "stretch"}
+    return {}
+
+
 def money(value) -> str:
     return "—" if value is None or pd.isna(value) else MONEY.format(float(value))
 
@@ -77,13 +98,17 @@ def sidebar_settings() -> Settings:
 
     with st.sidebar.expander("Extraction", expanded=False):
         cutoff = st.number_input("History window (months)", 1, 60, 36)
+        min_rec = st.slider("Minimum reconciliation before retrying parsers", 0.0, 1.0, 0.90, 0.05,
+                            help="If fewer rows than this reconcile against the running balance, "
+                                 "the generic parsers are tried as well and the best result wins.")
 
     with st.sidebar.expander("Underwriting", expanded=False):
         baseline = st.radio("Salary baseline", ["min_non_zero", "median"], horizontal=True,
                             help="min_non_zero is the conservative choice.")
-        frac_sal = st.slider("Repayment capacity — salaried", 0.0, 1.0, 0.55, 0.01)
-        frac_non = st.slider("Repayment capacity — non-salaried", 0.0, 1.0, 0.45, 0.01)
-        margin = st.slider("Income margin on inflow (non-salaried)", 0.0, 1.0, 0.15, 0.05)
+        frac_sal = st.slider("Repayment capacity — salaried", 0.0, 1.0, 0.33, 0.01)
+        frac_non = st.slider("Repayment capacity — non-salaried", 0.0, 1.0, 0.30, 0.01)
+        margin = st.slider("Income margin on inflow (non-salaried)", 0.0, 1.0, 0.30, 0.05)
+        recency = st.number_input("Salary counts as recent within (days)", 7, 120, 45)
 
     with st.sidebar.expander("AI fallback", expanded=False):
         st.caption("Used only when every rule-based parser fails validation. "
@@ -94,10 +119,10 @@ def sidebar_settings() -> Settings:
         model = st.text_input("Model", value=Settings().llm_model)
 
     settings = Settings(
-        cutoff_months=int(cutoff),
+        cutoff_months=int(cutoff), min_reconciliation=float(min_rec),
         salary_baseline_mode=baseline, repayment_fraction_salaried=float(frac_sal),
         repayment_fraction_non_salaried=float(frac_non), inflow_margin=float(margin),
-        enable_llm=bool(enable_llm), llm_model=model,
+        salary_recency_days=int(recency), enable_llm=bool(enable_llm), llm_model=model,
         **({"llm_api_key": api_key} if api_key else {}),
     )
 
@@ -181,21 +206,21 @@ def overview(a: StatementAnalyzer) -> None:
     c[3].metric("Flight risk", r["Flight Risk"])
 
     st.subheader("Month-on-month cashflow")
-    st.altair_chart(cashflow_chart(a.cashflow_monthly), width="stretch")
+    st.altair_chart(cashflow_chart(a.cashflow_monthly), **fill(st.altair_chart))
 
     left, right = st.columns(2)
     with left:
         st.subheader("Where the money goes")
-        st.altair_chart(category_chart(a.df), width="stretch")
+        st.altair_chart(category_chart(a.df), **fill(st.altair_chart))
     with right:
         st.subheader("Balance")
         if a.has_balance:
-            st.altair_chart(balance_chart(a.df), width="stretch")
+            st.altair_chart(balance_chart(a.df), **fill(st.altair_chart))
         else:
             st.info("This statement has no running balance column.")
 
     with st.expander("Full summary table"):
-        st.dataframe(as_table(a.risk_indicators), width="stretch")
+        st.dataframe(as_table(a.risk_indicators), **fill(st.dataframe))
 
 
 def affordability(a: StatementAnalyzer) -> None:
@@ -231,7 +256,7 @@ def affordability(a: StatementAnalyzer) -> None:
         st.markdown(f"- {note}")
 
     with st.expander("All affordability fields"):
-        st.dataframe(as_table(p.as_series()), width="stretch")
+        st.dataframe(as_table(p.as_series()), **fill(st.dataframe))
 
 
 def transactions(a: StatementAnalyzer) -> None:
@@ -250,26 +275,26 @@ def transactions(a: StatementAnalyzer) -> None:
         view = view[view["narration"].str.contains(search, case=False, na=False)]
 
     st.caption(f"{len(view):,} of {len(df):,} transactions")
-    st.dataframe(view, width="stretch", height=520,
+    st.dataframe(view, height=520, **fill(st.dataframe),
                  column_config={"amount": st.column_config.NumberColumn(format="%.2f"),
                                 "balance": st.column_config.NumberColumn(format="%.2f")})
 
     left, right = st.columns(2)
     with left:
         st.subheader("Top senders")
-        st.dataframe(a.inflow_sources.head(15), width="stretch", hide_index=True)
+        st.dataframe(a.inflow_sources.head(15), hide_index=True, **fill(st.dataframe))
     with right:
         st.subheader("Top receivers")
-        st.dataframe(a.outflow_destinations.head(15), width="stretch", hide_index=True)
+        st.dataframe(a.outflow_destinations.head(15), hide_index=True, **fill(st.dataframe))
 
 
 def downloads(a: StatementAnalyzer, stem: str) -> None:
     left, right = st.columns(2)
     left.download_button("⬇️  Excel report", write_excel(a).getvalue(), f"{stem}.xlsx",
                          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                         width="stretch")
+                         **fill(st.download_button))
     right.download_button("⬇️  JSON report", json.dumps(build_json(a), indent=2), f"{stem}.json",
-                          "application/json", width="stretch")
+                          "application/json", **fill(st.download_button))
 
 
 # --------------------------------------------------------------------- main
@@ -292,7 +317,7 @@ def main() -> None:
     chosen = st.selectbox("Statement", names) if len(names) > 1 else names[0]
     file = next(f for f in files if f.name == chosen)
 
-    with st.spinner(f"Reading {file.name}…"):
+    with st.spinner(f"Reading {file.name}… (large statements can take a few seconds)"):
         try:
             statement = _load(file.getvalue(), file.name, settings)
         except Exception as exc:
@@ -307,6 +332,8 @@ def main() -> None:
     header[0].metric("Account name", statement.account_name or "—")
     header[1].metric("Account number", statement.account_number or "—")
     header[2].metric("Transactions", f"{len(statement.transactions):,}")
+
+
     q = statement.quality
     rate = q.reconciliation_rate
     label = "n/a (no running balance)" if rate is None else f"{rate:.0%}"

@@ -196,3 +196,23 @@ def test_messy_text_only_pdf_is_extracted():
     assert s.transactions["direction"].tolist() == ["debit", "credit", "debit"]
     assert s.quality.reconciliation_rate == 1.0
     assert s.opening_balance == 22_500
+
+
+def test_time_budget_stops_parsing_and_warns(tmp_path):
+    """A slow document must not run forever: the pipeline keeps the best partial result."""
+    pytest.importorskip("reportlab")
+    from statement_analyzer import Settings
+
+    pdf = tmp_path / "messy.pdf"
+    _messy_text_pdf(pdf)
+    # Budget of 0 => every parser sees an expired deadline on its first check.
+    s = load_statement(pdf, settings=Settings(max_parse_seconds=0.0))
+    assert any("time budget" in w for w in s.quality.warnings)
+
+
+def test_quality_report_records_elapsed_time(tmp_path):
+    pytest.importorskip("reportlab")
+    pdf = tmp_path / "messy.pdf"
+    _messy_text_pdf(pdf)
+    s = load_statement(pdf)
+    assert s.quality.seconds >= 0 and "seconds" in s.quality.as_dict()

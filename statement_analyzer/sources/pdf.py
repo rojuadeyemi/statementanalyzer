@@ -77,7 +77,9 @@ def find_opening_balance(text: str) -> Optional[float]:
 # ---------------------------------------------------------------------------
 
 
-def _run(parser: StatementParser, doc: Document, opening, settings: Settings):
+def _run(parser: StatementParser, doc: Document, opening, settings: Settings, deadline=None):
+    parser.deadline = deadline
+    started = time.perf_counter()
     try:
         raw = parser.parse(doc)
     except Exception:  # a broken parser must never kill the pipeline
@@ -91,7 +93,10 @@ def _run(parser: StatementParser, doc: Document, opening, settings: Settings):
         drop_patterns=parser.drop_patterns,
         tolerance=settings.balance_tolerance,
     )
-    log.info("%s: %d rows, reconciliation=%s", parser.name, report.rows, report.reconciliation_rate)
+    elapsed = time.perf_counter() - started
+    log.info("%s: %d rows, reconciliation=%s, %.1fs", parser.name, report.rows,
+             report.reconciliation_rate, elapsed)
+    report.seconds = round(elapsed, 2)
     return parser.name, df, report
 
 
@@ -110,26 +115,29 @@ def parse_pdf(path: str | Path, settings: Settings = DEFAULT_SETTINGS) -> Statem
         name, number = extract_account_meta(doc.first)
         opening = find_opening_balance(doc.first)
 
+        deadline = time.monotonic() + settings.max_parse_seconds
         results = []
         bank = detect_bank(doc)
         if bank:
-            results.append(_run(bank, doc, opening, settings))
+            results.append(_run(bank, doc, opening, settings, deadline))
 
-        # Generic parsers run when no spec matched OR the spec's output fails
-        # validation. They are ordered cheapest-and-most-structured first; the
-        # loop stops as soon as one passes validation, and the best-scoring
-        # result wins in any case.
-        if not results or not _good_enough(results[-1][2], settings):
+        if not results:
             fixed_header = MoniepointTableParser()
             generic: list[StatementParser] = [ColumnLayoutParser(), TableParser(), TextRowParser()]
             if fixed_header.detect(doc):
                 generic.insert(0, fixed_header)
             for parser in generic:
-                results.append(_run(parser, doc, opening, settings))
+                # Always make at least one attempt, even with no budget left:
+                # a partial result beats no result. Parsers stop themselves at
+                # the deadline, so the attempt is bounded either way.
+                if results and time.monotonic() > deadline:
+                    log.warning("time budget spent; keeping the best result so far")
+                    break
+                results.append(_run(parser, doc, opening, settings, deadline))
                 if _good_enough(results[-1][2], settings):
                     break
 
-        best = max(results, key=lambda r: r[2].score)
+        best = max(results, key=lambda r: r[2].score, default=("none", pd.DataFrame(), QualityReport()))
         llm_note = None
         if not _good_enough(best[2], settings) and settings.enable_llm:
             llm = LLMParser(settings)
@@ -143,6 +151,11 @@ def parse_pdf(path: str | Path, settings: Settings = DEFAULT_SETTINGS) -> Statem
                 best = max(results, key=lambda r: r[2].score)
 
         parser_name, df, report = best
+        if time.monotonic() > deadline:
+            report.warnings.append(
+                f"extraction hit the {settings.max_parse_seconds:g}s time budget; "
+                "some rows may be missing (raise Settings.max_parse_seconds to allow longer)"
+            )
         if llm_note:
             report.warnings.append(llm_note)
         if df.empty:

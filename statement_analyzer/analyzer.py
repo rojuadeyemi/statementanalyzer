@@ -1,12 +1,4 @@
 """Financial behaviour and risk metrics on a normalized Statement.
-
-Fixes vs. the old Analyzer:
-* "last month inflow" used the OLDEST month (summary was sorted descending, then .iloc[-1]).
-* Flight risk printed "100.0%"/"0.0%" for a yes/no flag.
-* Loan repayment "count" counted months, not transactions.
-* Crashes when there is no balance column (zeroing rate, balance floor) or no
-  debit/credit in the data (KeyError on count_debit), and divide-by-zero in volatility.
-* ``save_json`` double-encoded the JSON (json.dump of a JSON string).
 """
 from __future__ import annotations
 
@@ -168,7 +160,7 @@ class StatementAnalyzer:
         total_out = float(self.outflows["amount"].sum())
         net = self.cashflow_monthly["net_cashflow"]
         volatility = _ratio(net.std(ddof=1), abs(net.mean())) if len(net) > 1 else None
-        shares = self.inflow_sources[self.inflow_sources["sender"].notna()]["total_inflow"] / total_in if total_in else pd.Series(dtype=float)
+        shares = self.inflow_sources[self.inflow_sources["sender"].notna()]['total_inflow'] / total_in if total_in else pd.Series(dtype=float)
         betting = self._category_monthly("betting")
         loan_rep = self.core[self.core["category"] == "loan_repayment"]
         loans = self.core[self.core["category"] == "loan"]

@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 from dataclasses import dataclass
 from typing import Iterable, Optional
 
@@ -528,6 +529,9 @@ class ColumnLayoutParser(StatementParser):
         records: list[dict] = []
         cols: Optional[list[_Column]] = None
         for page in doc.pdf.pages:
+            if self.out_of_time():
+                log.warning("%s: stopped at the time budget with %d rows", self.name, len(records))
+                break
             lines = _group_lines(page.extract_words(keep_blank_chars=False, use_text_flow=False))
             found, start = self._find_header(lines)
             if found:
@@ -565,16 +569,26 @@ class TableParser(StatementParser):
     def parse(self, doc: Document) -> pd.DataFrame:
         if doc.pdf is None:
             return pd.DataFrame()
-        return pd.DataFrame.from_records(extract_generic_records(doc.pdf, self.keywords))
+        return pd.DataFrame.from_records(
+            extract_generic_records(doc.pdf, self.keywords, deadline=self.deadline)
+        )
 
 
-def extract_generic_records(pdf, keywords: Iterable[str] = DEFAULT_KEYWORDS) -> list[dict]:
-    """Walk every table on every page and collect canonical records."""
+def extract_generic_records(pdf, keywords: Iterable[str] = DEFAULT_KEYWORDS,
+                            deadline: Optional[float] = None) -> list[dict]:
+    """Walk every table on every page and collect canonical records.
+
+    ``extract_tables`` is the slowest step in the whole library on PDFs with a
+    lot of vector content, so it honours the deadline between pages.
+    """
     keywords = tuple(keywords)
     records: list[dict] = []
     header: Optional[list] = None
 
     for page in pdf.pages:
+        if deadline is not None and time.monotonic() > deadline:
+            log.warning("table parser: stopped at the time budget with %d rows", len(records))
+            break
         try:
             tables = page.extract_tables(TABLE_SETTINGS) or []
         except Exception:                      # a bad page must not stop the document
@@ -623,6 +637,9 @@ class TextRowParser(StatementParser):
         lines = doc.lines()
         i, n = 0, len(lines)
         while i < n:
+            if i % 200 == 0 and self.out_of_time():
+                log.warning("%s: stopped at the time budget with %d rows", self.name, len(records))
+                break
             line = lines[i]
             if _ROW_NOISE.search(line):
                 i += 1
